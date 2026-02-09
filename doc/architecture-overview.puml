@@ -1,0 +1,95 @@
+@startuml architecture-overview
+
+title flul-test — Architecture Overview
+
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "flul::test" {
+
+    class "Suite<Derived>" as Suite <<CRTP>> {
+        + {static} Register(Registry&) : void
+        + SetUp() : void
+        + TearDown() : void
+    }
+
+    class Registry {
+        + Add(suite, name, callable) : void
+        + Tests() : span<TestEntry>
+        + Filter(pattern) : void
+        + List() : void
+    }
+
+    class Runner {
+        + Runner(Registry&)
+        + RunAll() : int
+    }
+
+    class "Expect<T>" as Expect {
+        + Expect(actual, loc = source_location::current())
+        + ToEqual(expected) : Expect&
+        + ToBeTrue() : Expect&
+        + ToBeFalse() : Expect&
+        + ToBeGreaterThan(bound) : Expect&
+        + ToBeLessThan(bound) : Expect&
+        + ToNotEqual(unexpected) : Expect&
+        - loc_ : source_location
+    }
+
+    class "ExpectCallable<F>" as ExpectCallable {
+        + ExpectCallable(callable, loc = source_location::current())
+        + ToThrow<E>() : void
+        + ToNotThrow() : void
+        - loc_ : source_location
+    }
+
+    class AssertionError <<exception>> {
+        + what() : string
+        + actual : string
+        + expected : string
+        + location : source_location
+    }
+
+    struct TestEntry {
+        + suite_name : string_view
+        + test_name : string_view
+        + callable : function<void()>
+    }
+
+    struct TestResult {
+        + suite_name : string_view
+        + test_name : string_view
+        + passed : bool
+        + duration : chrono::duration
+        + error : optional<AssertionError>
+    }
+}
+
+package "User Test Code" as user <<external>> {
+    class "MySuite" as MySuite {
+        + {static} Register(Registry&) : void
+        + TestFoo() : void
+        + TestBar() : void
+    }
+}
+
+package "main()" as main <<external>> {
+    note as N_main
+        1. Parse CLI (--list, --filter)
+        2. Create Registry
+        3. Register suites
+        4. Create Runner(registry)
+        5. return runner.RunAll()
+    end note
+}
+
+MySuite -up-|> Suite : <<derives>>
+Suite ..> Registry : registers into
+Runner --> Registry : reads tests from
+Runner ..> TestResult : produces
+Expect ..> AssertionError : throws on failure
+ExpectCallable ..> AssertionError : throws on failure
+Runner ..> AssertionError : catches per test
+Registry --> TestEntry : stores
+
+@enduml
