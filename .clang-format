@@ -1,0 +1,59 @@
+---
+# Google C++ Style Guide
+# https://google.github.io/styleguide/cppguide.html
+#
+# This configuration is based on Google style with project-specific overrides:
+# - IndentWidth: 4 (Google uses 2)
+# - ColumnLimit: 100 (Google uses 80)
+# - PointerAlignment: Left (Google uses Right)
+
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 100
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Attach
+IndentCaseLabels: true
+NamespaceIndentation: None
+Standard: c++20
+
+# Google-style include ordering:
+# 1. Related header (main header for .cc file)
+# 2. C system headers
+# 3. C++ standard library headers
+# 4. Other libraries' headers
+# 5. Project headers
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  # Main header (related header for .cc files)
+  - Regex: '^"[^/]*\.h(pp)?"$'
+    Priority: 1
+    SortPriority: 1
+  # C system headers
+  - Regex: '^<(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdarg|stdatomic|stdbool|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)\.h>$'
+    Priority: 2
+    SortPriority: 2
+  # POSIX headers
+  - Regex: '^<(unistd|fcntl|sys/.*|pthread|dlfcn|dirent|termios|netinet/.*|arpa/.*)\.h>$'
+    Priority: 2
+    SortPriority: 3
+  # C++ standard library headers
+  - Regex: '^<[a-z_]+>$'
+    Priority: 3
+    SortPriority: 4
+  # Third-party libraries (angle brackets)
+  - Regex: '^<.*>$'
+    Priority: 4
+    SortPriority: 5
+  # Project headers (quotes)
+  - Regex: '^".*"$'
+    Priority: 5
+    SortPriority: 6
