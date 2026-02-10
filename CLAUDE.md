@@ -63,6 +63,7 @@ The following deviate from pure Google style (see `.clang-format`):
 - Indent width: 4 spaces (Google uses 2)
 - Column limit: 100 (Google uses 80)
 - Pointer alignment: Left (Google uses Right)
+- File names: `snake_case.hpp` for headers, `snake_case.cpp` for source files (Google uses `.h`/`.cc`)
 
 ### Comments
 
