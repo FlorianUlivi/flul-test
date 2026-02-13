@@ -1,8 +1,17 @@
 # My C++ software test framework - flul-test
 
 - This project is more about trying and learning and less about practicality.
-- Target platform: macOS only
-- Base is C++23, CMake 4+
+- Target platforms: macOS, Linux (Debian Trixie reference environment)
+- Base is C++23, CMake 3.31+
+   - Reference toolchain: CMake 3.31, Ninja, Clang/LLVM 19 with libc++
+   - Minimum tested on Linux: Debian Trixie with system-default `clang++`
+
+## Tooling (Debian Trixie)
+
+Ensure `clang++` resolves to Clang 19 with libc++ (e.g., via
+`update-alternatives`) so `std::print`/`std::println` are available. The
+coverage workflow depends on the matching `llvm-profdata` and `llvm-cov`
+executables from the active LLVM toolchain.
 
 ## Goal
 

@@ -21,6 +21,29 @@ for arg in "$@"; do
     esac
 done
 
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    LLVM_PROFDATA=(xcrun llvm-profdata)
+    LLVM_COV=(xcrun llvm-cov)
+    OPEN_CMD=(open)
+else
+    if ! command -v llvm-profdata >/dev/null 2>&1; then
+        echo "llvm-profdata not found in PATH" >&2
+        exit 127
+    fi
+    if ! command -v llvm-cov >/dev/null 2>&1; then
+        echo "llvm-cov not found in PATH" >&2
+        exit 127
+    fi
+    LLVM_PROFDATA=(llvm-profdata)
+    LLVM_COV=(llvm-cov)
+
+    if command -v xdg-open >/dev/null 2>&1; then
+        OPEN_CMD=(xdg-open)
+    else
+        OPEN_CMD=()
+    fi
+fi
+
 cmake --preset coverage -S "${ROOT_DIR}"
 cmake --build --preset coverage
 
@@ -30,11 +53,11 @@ rm -rf "${PROFILES_DIR}" && mkdir -p "${PROFILES_DIR}"
 LLVM_PROFILE_FILE="${PROFILES_DIR}/self_test_%p.profraw" \
     ctest --preset coverage
 
-xcrun llvm-profdata merge --sparse \
+"${LLVM_PROFDATA[@]}" merge --sparse \
     --output="${MERGED}" "${PROFILES_DIR}"/*.profraw
 
 if [[ "${MODE_AGENT}" == false ]]; then
-    xcrun llvm-cov show \
+    "${LLVM_COV[@]}" show \
         --format=html \
         --instr-profile="${MERGED}" \
         --show-branches=count \
@@ -45,7 +68,7 @@ if [[ "${MODE_AGENT}" == false ]]; then
 fi
 
 echo ""
-xcrun llvm-cov report \
+"${LLVM_COV[@]}" report \
     --instr-profile="${MERGED}" \
     --ignore-filename-regex="(build/|/usr/)" \
     "${SELF_TEST}"
@@ -53,7 +76,7 @@ xcrun llvm-cov report \
 if [[ "${MODE_AGENT}" == true ]]; then
     echo ""
     echo "=== Uncovered Lines ==="
-    xcrun llvm-cov export --format=lcov \
+    "${LLVM_COV[@]}" export --format=lcov \
         --instr-profile="${MERGED}" \
         --ignore-filename-regex="(build/|/usr/)" \
         "${SELF_TEST}" \
@@ -94,5 +117,9 @@ fi
 if [[ "${MODE_AGENT}" == false ]]; then
     echo ""
     echo "HTML report: ${REPORT_DIR}/index.html"
-    [[ "${MODE_OPEN}" == true ]] && open "${REPORT_DIR}/index.html"
+    if [[ "${MODE_OPEN}" == true && ${#OPEN_CMD[@]} -gt 0 ]]; then
+        "${OPEN_CMD[@]}" "${REPORT_DIR}/index.html"
+    elif [[ "${MODE_OPEN}" == true ]]; then
+        echo "--open requested but no GUI opener available" >&2
+    fi
 fi
