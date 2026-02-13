@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLUL_TEST_STRINGIFY_HPP_
+#define FLUL_TEST_STRINGIFY_HPP_
 
 #include <concepts>
 #include <format>
@@ -46,3 +47,5 @@ inline auto Demangle(const char* mangled) -> std::string {
 }
 
 }  // namespace flul::test
+
+#endif  // FLUL_TEST_STRINGIFY_HPP_

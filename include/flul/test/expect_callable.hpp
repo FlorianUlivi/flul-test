@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLUL_TEST_EXPECT_CALLABLE_HPP_
+#define FLUL_TEST_EXPECT_CALLABLE_HPP_
 
 #include <concepts>
 #include <source_location>
@@ -11,6 +12,9 @@ namespace flul::test {
 
 template <std::invocable F>
 class ExpectCallable {
+    F callable_;
+    std::source_location loc_;
+
    public:
     constexpr explicit ExpectCallable(F callable,
                                       std::source_location loc = std::source_location::current())
@@ -45,10 +49,8 @@ class ExpectCallable {
             throw AssertionError{"unknown exception", "no exception", loc_};
         }
     }
-
-   private:
-    F callable_;
-    std::source_location loc_;
 };
 
 }  // namespace flul::test
+
+#endif  // FLUL_TEST_EXPECT_CALLABLE_HPP_

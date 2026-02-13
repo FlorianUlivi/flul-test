@@ -56,6 +56,25 @@ This project follows the [Google C++ Style Guide](https://google.github.io/style
 - **Macros**: `SCREAMING_SNAKE_CASE`
 - **Namespaces**: `snake_case`
 
+### Header Guards
+
+Use include guards (not `#pragma once`), following the Google C++ Style Guide.
+Guard name is derived from the include-relative path, all uppercase, with `/`
+and `.` replaced by `_`, and a trailing `_`:
+
+```
+flul/test/foo_bar.hpp  →  FLUL_TEST_FOO_BAR_HPP_
+```
+
+```cpp
+#ifndef FLUL_TEST_FOO_BAR_HPP_
+#define FLUL_TEST_FOO_BAR_HPP_
+
+// ... content ...
+
+#endif  // FLUL_TEST_FOO_BAR_HPP_
+```
+
 ### Project Overrides
 
 The following deviate from pure Google style (see `.clang-format`):

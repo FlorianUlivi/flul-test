@@ -17,6 +17,10 @@ include(cmake/CompilerWarnings.cmake)
 add_library(flul-test-expect INTERFACE)
 target_include_directories(flul-test-expect INTERFACE include)
 
+# Full framework (header-only interface library)
+add_library(flul-test INTERFACE)
+target_link_libraries(flul-test INTERFACE flul-test-expect)
+
 # Test binary
 add_executable(expect_test test/expect_test.cpp)
 target_link_libraries(expect_test PRIVATE flul-test-expect)

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLUL_TEST_ASSERTION_ERROR_HPP_
+#define FLUL_TEST_ASSERTION_ERROR_HPP_
 
 #include <exception>
 #include <format>
@@ -8,6 +9,8 @@
 namespace flul::test {
 
 class AssertionError : public std::exception {
+    std::string what_;
+
    public:
     // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes): intentional public
     // fields — Runner/output layer accesses these directly without getters.
@@ -18,18 +21,17 @@ class AssertionError : public std::exception {
 
     constexpr AssertionError(std::string actual_val, std::string expected_val,
                              std::source_location loc)
-        : actual(std::move(actual_val)),
+        : what_(std::format("{}:{}: assertion failed\n  expected: {}\n    actual: {}",
+                            loc.file_name(), loc.line(), expected_val, actual_val)),
+          actual(std::move(actual_val)),
           expected(std::move(expected_val)),
-          location(loc),
-          what_(std::format("{}:{}: assertion failed\n  expected: {}\n    actual: {}",
-                            location.file_name(), location.line(), expected, actual)) {}
+          location(loc) {}
 
     [[nodiscard]] auto what() const noexcept -> const char* override {
         return what_.c_str();
     }
-
-   private:
-    std::string what_;
 };
 
 }  // namespace flul::test
+
+#endif  // FLUL_TEST_ASSERTION_ERROR_HPP_

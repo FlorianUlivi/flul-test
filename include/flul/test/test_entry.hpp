@@ -1,0 +1,17 @@
+#ifndef FLUL_TEST_TEST_ENTRY_HPP_
+#define FLUL_TEST_TEST_ENTRY_HPP_
+
+#include <functional>
+#include <string_view>
+
+namespace flul::test {
+
+struct TestEntry {
+    std::string_view suite_name;
+    std::string_view test_name;
+    std::function<void()> callable;
+};
+
+}  // namespace flul::test
+
+#endif  // FLUL_TEST_TEST_ENTRY_HPP_

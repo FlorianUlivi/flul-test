@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FLUL_TEST_EXPECT_HPP_
+#define FLUL_TEST_EXPECT_HPP_
 
 #include <concepts>
 #include <source_location>
@@ -11,6 +12,9 @@ namespace flul::test {
 
 template <typename T>
 class Expect {
+    T actual_;
+    std::source_location loc_;
+
    public:
     constexpr explicit Expect(T actual, std::source_location loc = std::source_location::current())
         : actual_(std::move(actual)), loc_(loc) {}
@@ -71,10 +75,8 @@ class Expect {
         }
         return std::forward<decltype(self)>(self);
     }
-
-   private:
-    T actual_;
-    std::source_location loc_;
 };
 
 }  // namespace flul::test
+
+#endif  // FLUL_TEST_EXPECT_HPP_
