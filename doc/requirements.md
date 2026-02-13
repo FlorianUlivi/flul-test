@@ -50,6 +50,8 @@
    - `SetUp()` runs before each test, `TearDown()` runs after
    - Fresh instance per test guarantees clean state
 8. **Test Filtering** - Run subset of tests by name or pattern via CLI
+9. **Coverage** - Generate LLVM source-based line and branch coverage reports
+   via `./scripts/coverage.sh`. HTML output in `build/coverage/coverage-report/`.
 
 ### Design Decisions
 

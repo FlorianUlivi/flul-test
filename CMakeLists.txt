@@ -14,6 +14,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(cmake/CompilerWarnings.cmake)
 include(cmake/FlulTest.cmake)
 
+if(FLUL_COVERAGE)
+    include(cmake/Coverage.cmake)
+endif()
+
 enable_testing()
 
 # Framework (header-only interface library)
@@ -30,3 +34,8 @@ add_executable(runner_test test/runner_test.cpp)
 target_link_libraries(runner_test PRIVATE flul-test)
 set_project_warnings(runner_test)
 flul_test_discover(runner_test)
+
+if(FLUL_COVERAGE)
+    enable_coverage_for_target(expect_test)
+    enable_coverage_for_target(runner_test)
+endif()

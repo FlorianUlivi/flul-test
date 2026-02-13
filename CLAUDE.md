@@ -18,6 +18,17 @@ Use plan mode when:
 - `clang-format -i <file>` - Format code before committing
 - `./scripts/clang-tidy.sh <file>` - Static analysis and naming validation
 
+### Coverage
+
+**REQUIRED**: Check coverage when adding or changing code:
+
+1. **Before** changes: `./scripts/coverage.sh --agent` — record TOTAL line% and branch%
+2. Make changes
+3. **After** changes: `./scripts/coverage.sh --agent` — compare TOTAL line% and branch%
+4. If coverage decreased >1%: examine "Uncovered Lines" output, add tests, re-run
+5. If after one iteration decrease is within 1%: acceptable, proceed
+6. If still >1% decrease: ask user for confirmation before proceeding
+
 ### Conversation Style
 
 - Keep feedback very terse

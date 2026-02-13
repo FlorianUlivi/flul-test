@@ -25,6 +25,17 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "FLUL_COVERAGE": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -35,7 +46,8 @@
     {
       "name": "release",
       "configurePreset": "release"
-    }
+    },
+    { "name": "coverage", "configurePreset": "coverage" }
   ],
   "testPresets": [
     {
@@ -48,6 +60,13 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
       "output": {
         "outputOnFailure": true
       }
