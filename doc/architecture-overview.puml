@@ -60,8 +60,12 @@ package "flul::test" {
         + suite_name : string_view
         + test_name : string_view
         + passed : bool
-        + duration : chrono::duration
+        + duration : chrono::nanoseconds
         + error : optional<AssertionError>
+    }
+
+    class Run <<free function>> {
+        + Run(argc, argv, Registry&) : int
     }
 }
 
@@ -75,16 +79,16 @@ package "User Test Code" as user <<external>> {
 
 package "main()" as main <<external>> {
     note as N_main
-        1. Parse CLI (--list, --filter)
-        2. Create Registry
-        3. Register suites
-        4. Create Runner(registry)
-        5. return runner.RunAll()
+        1. Create Registry
+        2. Register suites
+        3. return Run(argc, argv, registry)
     end note
 }
 
 MySuite -up-|> Suite : <<derives>>
 Suite ..> Registry : registers into
+Run --> Runner : creates and runs
+Run --> Registry : passes to Runner
 Runner --> Registry : reads tests from
 Runner ..> TestResult : produces
 Expect ..> AssertionError : throws on failure

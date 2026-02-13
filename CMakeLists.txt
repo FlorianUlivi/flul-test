@@ -12,16 +12,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/CompilerWarnings.cmake)
+include(cmake/FlulTest.cmake)
 
-# Assertion subsystem (header-only interface library)
-add_library(flul-test-expect INTERFACE)
-target_include_directories(flul-test-expect INTERFACE include)
+enable_testing()
 
-# Full framework (header-only interface library)
+# Framework (header-only interface library)
 add_library(flul-test INTERFACE)
-target_link_libraries(flul-test INTERFACE flul-test-expect)
+target_include_directories(flul-test INTERFACE include)
 
-# Test binary
+# Assertion subsystem bootstrap test (standalone, no framework runner)
 add_executable(expect_test test/expect_test.cpp)
-target_link_libraries(expect_test PRIVATE flul-test-expect)
+target_link_libraries(expect_test PRIVATE flul-test)
 set_project_warnings(expect_test)
+
+# Framework integration test
+add_executable(runner_test test/runner_test.cpp)
+target_link_libraries(runner_test PRIVATE flul-test)
+set_project_warnings(runner_test)
+flul_test_discover(runner_test)
