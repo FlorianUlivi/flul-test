@@ -1,118 +1,95 @@
 #include "flul/test/expect.hpp"
 
-#include <iostream>
-#include <stdexcept>
-
+#include "flul/test/assertion_error.hpp"
 #include "flul/test/expect_callable.hpp"
+#include "flul/test/registry.hpp"
 
 using flul::test::AssertionError;
 using flul::test::Expect;
 using flul::test::ExpectCallable;
+using flul::test::Registry;
+using flul::test::Suite;
 
-namespace {
+// NOLINTBEGIN(readability-convert-member-functions-to-static,readability-make-member-function-const)
 
-struct Counts {
-    int passed = 0;
-    int failed = 0;
+class ExpectSuite : public Suite<ExpectSuite> {
+   public:
+    void TestToEqualPass() {
+        Expect(42).ToEqual(42);
+    }
+
+    void TestToEqualFail() {
+        ExpectCallable([] { Expect(1).ToEqual(2); }).ToThrow<AssertionError>();
+    }
+
+    void TestToNotEqualPass() {
+        Expect(1).ToNotEqual(2);
+    }
+
+    void TestToNotEqualFail() {
+        ExpectCallable([] { Expect(1).ToNotEqual(1); }).ToThrow<AssertionError>();
+    }
+
+    void TestToBeTruePass() {
+        Expect(true).ToBeTrue();
+    }
+
+    void TestToBeTrueFail() {
+        ExpectCallable([] { Expect(false).ToBeTrue(); }).ToThrow<AssertionError>();
+    }
+
+    void TestToBeFalsePass() {
+        Expect(false).ToBeFalse();
+    }
+
+    void TestToBeFalseFail() {
+        ExpectCallable([] { Expect(true).ToBeFalse(); }).ToThrow<AssertionError>();
+    }
+
+    void TestToBeGreaterThanPass() {
+        Expect(10).ToBeGreaterThan(5);
+    }
+
+    void TestToBeGreaterThanFail() {
+        ExpectCallable([] { Expect(1).ToBeGreaterThan(10); }).ToThrow<AssertionError>();
+    }
+
+    void TestToBeLessThanPass() {
+        Expect(5).ToBeLessThan(10);
+    }
+
+    void TestToBeLessThanFail() {
+        ExpectCallable([] { Expect(10).ToBeLessThan(1); }).ToThrow<AssertionError>();
+    }
+
+    void TestChaining() {
+        Expect(50).ToBeGreaterThan(0).ToBeLessThan(100);
+    }
+
+    static void Register(Registry& r) {
+        AddTests(r, "ExpectSuite",
+                 {
+                     {"TestToEqualPass", &ExpectSuite::TestToEqualPass},
+                     {"TestToEqualFail", &ExpectSuite::TestToEqualFail},
+                     {"TestToNotEqualPass", &ExpectSuite::TestToNotEqualPass},
+                     {"TestToNotEqualFail", &ExpectSuite::TestToNotEqualFail},
+                     {"TestToBeTruePass", &ExpectSuite::TestToBeTruePass},
+                     {"TestToBeTrueFail", &ExpectSuite::TestToBeTrueFail},
+                     {"TestToBeFalsePass", &ExpectSuite::TestToBeFalsePass},
+                     {"TestToBeFalseFail", &ExpectSuite::TestToBeFalseFail},
+                     {"TestToBeGreaterThanPass", &ExpectSuite::TestToBeGreaterThanPass},
+                     {"TestToBeGreaterThanFail", &ExpectSuite::TestToBeGreaterThanFail},
+                     {"TestToBeLessThanPass", &ExpectSuite::TestToBeLessThanPass},
+                     {"TestToBeLessThanFail", &ExpectSuite::TestToBeLessThanFail},
+                     {"TestChaining", &ExpectSuite::TestChaining},
+                 });
+    }
 };
 
-void RunTest(Counts& counts, const char* name, auto fn) {
-    try {
-        fn();
-        std::cout << "[PASS] " << name << "\n";
-        ++counts.passed;
-    } catch (const AssertionError& e) {
-        std::cout << "[FAIL] " << name << "\n" << e.what() << "\n";
-        ++counts.failed;
-    } catch (const std::exception& e) {
-        std::cout << "[FAIL] " << name << " (unexpected exception: " << e.what() << ")\n";
-        ++counts.failed;
-    }
+// NOLINTEND(readability-convert-member-functions-to-static,readability-make-member-function-const)
+
+namespace expect_test {
+void Register(Registry& r) {  // NOLINT(misc-use-internal-linkage)
+    ExpectSuite::Register(r);
 }
-
-}  // namespace
-
-int main() {
-    Counts counts;
-
-    // ToEqual
-    RunTest(counts, "ToEqual passes when equal", [] { Expect(42).ToEqual(42); });
-    RunTest(counts, "ToEqual fails when not equal", [] {
-        bool threw = false;
-        try {
-            Expect(1).ToEqual(2);
-        } catch (const AssertionError&) {
-            threw = true;
-        }
-        Expect(threw).ToBeTrue();
-    });
-
-    // ToNotEqual
-    RunTest(counts, "ToNotEqual passes when not equal", [] { Expect(1).ToNotEqual(2); });
-    RunTest(counts, "ToNotEqual fails when equal", [] {
-        bool threw = false;
-        try {
-            Expect(1).ToNotEqual(1);
-        } catch (const AssertionError&) {
-            threw = true;
-        }
-        Expect(threw).ToBeTrue();
-    });
-
-    // ToBeTrue / ToBeFalse
-    RunTest(counts, "ToBeTrue passes", [] { Expect(true).ToBeTrue(); });
-    RunTest(counts, "ToBeFalse passes", [] { Expect(false).ToBeFalse(); });
-    RunTest(counts, "ToBeTrue fails on false", [] {
-        bool threw = false;
-        try {
-            Expect(false).ToBeTrue();
-        } catch (const AssertionError&) {
-            threw = true;
-        }
-        Expect(threw).ToBeTrue();
-    });
-
-    // Ordering
-    RunTest(counts, "ToBeGreaterThan passes", [] { Expect(10).ToBeGreaterThan(5); });
-    RunTest(counts, "ToBeLessThan passes", [] { Expect(5).ToBeLessThan(10); });
-
-    // Chaining
-    RunTest(counts, "Chaining: ToBeGreaterThan.ToBeLessThan",
-            [] { Expect(50).ToBeGreaterThan(0).ToBeLessThan(100); });
-
-    // ExpectCallable
-    RunTest(counts, "ToThrow passes when exception matches", [] {
-        ExpectCallable([] { throw std::runtime_error("boom"); }).ToThrow<std::runtime_error>();
-    });
-    RunTest(counts, "ToThrow fails when no exception thrown", [] {
-        bool threw = false;
-        try {
-            ExpectCallable([] {}).ToThrow<std::runtime_error>();
-        } catch (const AssertionError&) {
-            threw = true;
-        }
-        Expect(threw).ToBeTrue();
-    });
-    RunTest(counts, "ToThrow fails on wrong exception type", [] {
-        bool threw = false;
-        try {
-            ExpectCallable([] { throw std::logic_error("wrong"); }).ToThrow<std::runtime_error>();
-        } catch (const AssertionError&) {
-            threw = true;
-        }
-        Expect(threw).ToBeTrue();
-    });
-    RunTest(counts, "ToNotThrow passes", [] { ExpectCallable([] { /* no-op */ }).ToNotThrow(); });
-    RunTest(counts, "ToNotThrow fails when exception thrown", [] {
-        bool threw = false;
-        try {
-            ExpectCallable([] { throw std::runtime_error("oops"); }).ToNotThrow();
-        } catch (const AssertionError&) {
-            threw = true;
-        }
-        Expect(threw).ToBeTrue();
-    });
-
-    std::cout << "\n" << counts.passed << " passed, " << counts.failed << " failed\n";
-    return counts.failed > 0 ? 1 : 0;
-}
+}  // namespace expect_test

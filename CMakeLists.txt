@@ -24,18 +24,22 @@ enable_testing()
 add_library(flul-test INTERFACE)
 target_include_directories(flul-test INTERFACE include)
 
-# Assertion subsystem bootstrap test (standalone, no framework runner)
-add_executable(expect_test test/expect_test.cpp)
-target_link_libraries(expect_test PRIVATE flul-test)
-set_project_warnings(expect_test)
-
-# Framework integration test
-add_executable(runner_test test/runner_test.cpp)
-target_link_libraries(runner_test PRIVATE flul-test)
-set_project_warnings(runner_test)
-flul_test_discover(runner_test)
+# Self-test: the framework tests itself
+add_executable(self_test
+    test/self_test.cpp
+    test/assertion_error_test.cpp
+    test/stringify_test.cpp
+    test/expect_test.cpp
+    test/expect_callable_test.cpp
+    test/registry_test.cpp
+    test/runner_test.cpp
+    test/run_test.cpp
+    test/fixture_test.cpp
+)
+target_link_libraries(self_test PRIVATE flul-test)
+set_project_warnings(self_test)
+flul_test_discover(self_test)
 
 if(FLUL_COVERAGE)
-    enable_coverage_for_target(expect_test)
-    enable_coverage_for_target(runner_test)
+    enable_coverage_for_target(self_test)
 endif()

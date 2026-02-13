@@ -9,8 +9,7 @@ BUILD_DIR="${ROOT_DIR}/build/coverage"
 PROFILES_DIR="${BUILD_DIR}/profiles"
 MERGED="${BUILD_DIR}/merged.profdata"
 REPORT_DIR="${BUILD_DIR}/coverage-report"
-EXPECT_TEST="${BUILD_DIR}/expect_test"
-RUNNER_TEST="${BUILD_DIR}/runner_test"
+SELF_TEST="${BUILD_DIR}/self_test"
 
 MODE_AGENT=false
 MODE_OPEN=false
@@ -27,11 +26,8 @@ cmake --build --preset coverage
 
 rm -rf "${PROFILES_DIR}" && mkdir -p "${PROFILES_DIR}"
 
-# expect_test is not registered with CTest — run directly
-LLVM_PROFILE_FILE="${PROFILES_DIR}/expect_test_%p.profraw" "${EXPECT_TEST}"
-
-# runner_test is registered with CTest
-LLVM_PROFILE_FILE="${PROFILES_DIR}/runner_test_%p.profraw" \
+# All tests discovered via CTest
+LLVM_PROFILE_FILE="${PROFILES_DIR}/self_test_%p.profraw" \
     ctest --preset coverage
 
 xcrun llvm-profdata merge --sparse \
@@ -45,14 +41,14 @@ if [[ "${MODE_AGENT}" == false ]]; then
         --show-line-counts-or-regions \
         --output-dir="${REPORT_DIR}" \
         --ignore-filename-regex="(build/|/usr/)" \
-        "${EXPECT_TEST}" --object="${RUNNER_TEST}"
+        "${SELF_TEST}"
 fi
 
 echo ""
 xcrun llvm-cov report \
     --instr-profile="${MERGED}" \
     --ignore-filename-regex="(build/|/usr/)" \
-    "${EXPECT_TEST}" --object="${RUNNER_TEST}"
+    "${SELF_TEST}"
 
 if [[ "${MODE_AGENT}" == true ]]; then
     echo ""
@@ -60,7 +56,7 @@ if [[ "${MODE_AGENT}" == true ]]; then
     xcrun llvm-cov export --format=lcov \
         --instr-profile="${MERGED}" \
         --ignore-filename-regex="(build/|/usr/)" \
-        "${EXPECT_TEST}" --object="${RUNNER_TEST}" \
+        "${SELF_TEST}" \
     | awk -v root="${ROOT_DIR}/" '
         /^SF:/ {
             file = substr($0, 4)
