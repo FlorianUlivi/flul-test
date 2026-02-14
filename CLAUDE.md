@@ -152,11 +152,20 @@ Documentation lives in `doc/`.
 Always keep `doc/requirements.md` and `doc/architecture-overview.puml` up to
 date when adding or updating the requirements.
 
+Each feature in `doc/requirements.md` must carry a status marker:
+- `[DONE]` — fully implemented and merged
+- `[TODO]` — planned but not yet implemented
+
 Process for adding features:
 
-1. Update the requirements
+1. Add the feature to `doc/requirements.md` with `[TODO]`
 2. Update the architecture overview
 3. Add detailed architecture and design decision documentation
+
+When completing a feature and merging back into `develop`:
+
+1. Flip the marker from `[TODO]` to `[DONE]` in `doc/requirements.md`
+2. Verify no other markers need updating
 
 When creating or updating architecture diagrams:
 
