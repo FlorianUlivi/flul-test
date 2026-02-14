@@ -34,6 +34,45 @@ Use plan mode when:
 - Keep feedback very terse
 - Prefer structured output over prose
 
+## Git Strategy
+
+### Branches
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Always stable; tagged releases only |
+| `develop` | Active development; base for all work |
+| `feature/<name>` | One feature or fix per branch; branches from `develop` |
+
+### Workflow
+
+**Feature development:**
+1. `git checkout -b feature/<name> develop`
+2. Implement; keep branch short-lived
+3. Merge back into `develop` when done; delete branch
+
+Use a feature branch for any change that warrants plan mode.
+
+**Release:**
+1. Verify `develop` is stable and tests pass
+2. Bump version, commit to `develop`
+3. `git checkout main && git merge --no-ff develop`
+4. `git tag -a vX.Y.Z -m "Release X.Y.Z"`
+5. `git checkout develop && git merge main` ← back-merge to stay in sync
+
+**Hotfix (bug in released `main`):**
+1. `git checkout -b feature/hotfix-<desc> main`
+2. Fix and test
+3. Merge into `main`, tag new patch version
+4. Merge into `develop`
+
+### Versioning
+
+Semantic versioning: `MAJOR.MINOR.PATCH`
+- `PATCH` — bug fixes
+- `MINOR` — new backwards-compatible features
+- `MAJOR` — breaking changes
+
 ## Project Structure
 
 ```
