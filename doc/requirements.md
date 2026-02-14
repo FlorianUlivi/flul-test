@@ -59,7 +59,15 @@ executables from the active LLVM toolchain.
    - `SetUp()` runs before each test, `TearDown()` runs after
    - Fresh instance per test guarantees clean state
 8. **Test Filtering** - Run subset of tests by name or pattern via CLI
-9. **Coverage** - Generate LLVM source-based line and branch coverage reports
+9. **Tags** - Annotate individual tests with string labels for cross-suite selection
+   - Tags are assigned at registration time as an optional argument to `Register()`
+   - Multiple tags per test are supported
+   - `--tag <tag>` CLI flag runs only tests carrying that tag (repeatable; multiple flags are OR-combined)
+   - `--exclude-tag <tag>` CLI flag skips tests carrying that tag (repeatable)
+   - Both flags compose with `--filter`: name filter applies first, tag filter second
+   - `--list` output includes tags alongside test names
+   - Tags have no CTest or IDE integration — they are a CLI-only convenience
+10. **Coverage** - Generate LLVM source-based line and branch coverage reports
    via `./scripts/coverage.sh`. HTML output in `build/coverage/coverage-report/`.
 
 ### Design Decisions
@@ -70,6 +78,8 @@ executables from the active LLVM toolchain.
 - CRTP base class for suite registration (register methods explicitly, no macros)
   - Registration is a static, type-level operation — CRTP provides the derived
     type naturally for fresh instance construction per test
+  - `Register()` accepts an optional `std::initializer_list<std::string_view>` tags
+    parameter; omitting it is zero-overhead (no tags stored)
 - Isolation model: one fresh suite object per test method, no state leaks
 - Assertion methods return `Expect<T>&` to allow chaining multiple constraints
 - `std::source_location` default parameter captures call-site file/line/function
