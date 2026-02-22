@@ -72,8 +72,10 @@ executables from the active LLVM toolchain.
    - Multiple tags per test are supported
    - `--tag <tag>` CLI flag runs only tests carrying that tag (repeatable; multiple flags are OR-combined)
    - `--exclude-tag <tag>` CLI flag skips tests carrying that tag (repeatable)
+   - When a test matches both `--tag` and `--exclude-tag`, `--exclude-tag` takes precedence and the test is excluded
    - Both flags compose with `--filter`: name filter applies first, tag filter second
-   - `--list` output includes tags alongside test names
+   - `--list` output is unchanged and contains no tags, preserving CTest discovery compatibility
+   - `--list-verbose` flag outputs one test per line with tags appended, e.g. `SuiteName::TestName [tag1, tag2]`; intended for human inspection only and has no CTest integration
    - Tags have no CTest or IDE integration — they are a CLI-only convenience
 10. **Randomized Execution Order** `[TODO]` - Shuffle test execution order to catch ordering dependencies
    - Default is fixed (deterministic) order; opt-in via `--randomize` CLI flag
@@ -81,6 +83,7 @@ executables from the active LLVM toolchain.
    - The RNG seed is printed at the start of the run so the order is reproducible
    - `--seed <N>` CLI flag accepts an integer seed to replay a specific order
    - `--randomize` with `--seed <N>` uses the provided seed instead of a random one
+   - `--seed <N>` without `--randomize` implicitly enables randomization as if `--randomize` had been passed
    - Compose with `--filter` and `--tag`: filtering happens first, then randomization is applied to the surviving tests
 11. **Coverage** `[DONE]` - Generate LLVM source-based line and branch coverage reports
    via `./scripts/coverage.sh`. HTML output in `build/coverage/coverage-report/`.
@@ -95,6 +98,9 @@ executables from the active LLVM toolchain.
     type naturally for fresh instance construction per test
   - `Register()` accepts an optional `std::initializer_list<std::string_view>` tags
     parameter; omitting it is zero-overhead (no tags stored)
+- `TestMetadata` value type holds test identity and configuration (names, tags,
+  future flags like expect-to-fail or timeout); owned by `TestEntry`, borrowed
+  by `TestResult` via `std::reference_wrapper<const TestMetadata>`
 - Isolation model: one fresh suite object per test method, no state leaks
 - Assertion methods return `Expect<T>&` to allow chaining multiple constraints
 - `std::source_location` default parameter captures call-site file/line/function

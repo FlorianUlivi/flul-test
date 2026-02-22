@@ -14,10 +14,13 @@ package "flul::test" {
     }
 
     class Registry {
-        + Add(suite, name, callable) : void
+        + Add(metadata, callable) : void
         + Tests() : span<TestEntry>
         + Filter(pattern) : void
+        + FilterByTag(tag) : void
+        + ExcludeByTag(tag) : void
         + List() : void
+        + Shuffle(seed) : void
     }
 
     class Runner {
@@ -33,6 +36,7 @@ package "flul::test" {
         + ToBeGreaterThan(bound) : Expect&
         + ToBeLessThan(bound) : Expect&
         + ToNotEqual(unexpected) : Expect&
+        + ToBeNear(expected, margin) : Expect&
         - loc_ : source_location
     }
 
@@ -50,15 +54,19 @@ package "flul::test" {
         + location : source_location
     }
 
-    struct TestEntry {
+    struct TestMetadata {
         + suite_name : string_view
         + test_name : string_view
+        + tags : vector<string_view>
+    }
+
+    struct TestEntry {
+        + metadata : TestMetadata
         + callable : function<void()>
     }
 
     struct TestResult {
-        + suite_name : string_view
-        + test_name : string_view
+        + metadata : reference_wrapper<const TestMetadata>
         + passed : bool
         + duration : chrono::nanoseconds
         + error : optional<AssertionError>
@@ -67,6 +75,15 @@ package "flul::test" {
     class Run <<free function>> {
         + Run(argc, argv, Registry&) : int
     }
+
+    note as N_cli
+        CLI flags:
+        --list, --filter <pattern>
+        --tag <tag>, --exclude-tag <tag>
+        --randomize, --seed <N>
+        --help
+    end note
+    Run .. N_cli
 }
 
 package "User Test Code" as user <<external>> {
@@ -95,5 +112,7 @@ Expect ..> AssertionError : throws on failure
 ExpectCallable ..> AssertionError : throws on failure
 Runner ..> AssertionError : catches per test
 Registry --> TestEntry : stores
+TestEntry *-- TestMetadata : contains
+TestResult ..> TestMetadata : references
 
 @enduml
