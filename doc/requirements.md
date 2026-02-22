@@ -68,7 +68,8 @@ executables from the active LLVM toolchain.
    - A test marked xfail that **fails** is reported as **XFAIL** (expected failure) and counts as a pass for the overall exit code
    - A test marked xfail that **passes** is reported as **XPASS** (unexpected pass) and counts as a failure for the overall exit code
    - Xfail interacts with tags and filtering: it is orthogonal metadata, applied after filtering just like any other per-test attribute
-   - The `--list` output indicates xfail tests (e.g., `[xfail]` marker)
+   - The `--list` output is unchanged (no marker added), preserving CTest discovery compatibility
+   - The `--list-verbose` output includes the `[xfail]` marker
    - Xfail is set at registration time and cannot be toggled via CLI flags
    - The summary line includes xfail/xpass counts alongside pass/fail
 3. **Skip** `[TODO]` `#SKIP` - Mark individual tests to be excluded from execution
@@ -76,7 +77,8 @@ executables from the active LLVM toolchain.
    - A skipped test is not executed
    - A skipped test is reported as **SKIP** and counts as neither pass nor fail for the overall exit code
    - Skip is orthogonal to tags and filtering: it is applied after filtering, so a filtered-out test is never reported as skipped
-   - The `--list` output indicates skipped tests (e.g., `[skip]` marker)
+   - The `--list` output is unchanged (no marker added), preserving CTest discovery compatibility
+   - The `--list-verbose` output includes the `[skip]` marker
    - Skip is set at registration time and cannot be toggled via CLI flags
    - The summary line includes the skip count alongside pass/fail/xfail/xpass counts
 4. **Timeout** `[TODO]` `#TMO` - Forcibly stop tests that exceed a per-test time limit
@@ -84,7 +86,8 @@ executables from the active LLVM toolchain.
    - A test that exceeds its timeout is forcibly stopped and reported as **TIMEOUT**
    - A TIMEOUT counts as a failure for the overall exit code
    - Timeout is orthogonal to tags and filtering: it is applied after filtering, so a filtered-out test is never subject to its timeout
-   - The `--list` output indicates tests with a timeout (e.g., `[timeout: Xms]` marker)
+   - The `--list` output is unchanged (no marker added), preserving CTest discovery compatibility
+   - The `--list-verbose` output includes the `[timeout: Xms]` marker
    - Timeout is set at registration time and cannot be toggled via CLI flags
    - The summary line includes the timeout count alongside pass/fail/skip/xfail/xpass counts
 
