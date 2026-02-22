@@ -29,6 +29,23 @@ Use plan mode when:
 5. If after one iteration decrease is within 1%: acceptable, proceed
 6. If still >1% decrease: ask user for confirmation before proceeding
 
+### Feature Development Workflow
+
+All feature work follows a 4-phase pipeline. **User clearance is required between every phase.**
+
+| Phase | Agent | Scope |
+|-------|-------|-------|
+| 1 — Requirements | `requirements-writer` | Define and confirm requirements in `doc/requirements.md` |
+| 2 — Architecture | `cpp-architect-overview` | Update `doc/architecture-overview.puml`; flag features needing design and any refactoring |
+| 3 — Detailed Design | `cpp-architect-design` | One feature per invocation; produces `doc/<feature>-design.md` |
+| 4 — Implementation | `cpp-implementer` | One feature per invocation; writes tests, implements code, runs checks |
+
+**Orchestration rules:**
+1. Always start with Phase 1, even if only confirming existing requirements are complete
+2. After each phase completes, present output to the user and **explicitly ask for clearance** before proceeding
+3. Phases 3 and 4 are per-feature — repeat with user clearance between each feature
+4. If Phase 2 or 3 flags refactoring: pause, surface it to the user as a named step, implement it as a separate `feature/refactor-<desc>` branch with its own user clearance, then resume the original phase
+
 ### Conversation Style
 
 - Keep feedback very terse
