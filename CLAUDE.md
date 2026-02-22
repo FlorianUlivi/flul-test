@@ -173,9 +173,19 @@ Each feature in `doc/requirements.md` must carry a status marker:
 - `[DONE]` — fully implemented and merged
 - `[TODO]` — planned but not yet implemented
 
+Each feature also carries a stable short identifier slug of the form `` `#SLUG` ``
+(max 5 uppercase ASCII letters), e.g. `` `#REG` ``, `` `#XFAIL` ``. The slug is
+assigned once and never changes, regardless of renumbering or regrouping.
+
+Use the slug consistently across all artefacts that relate to a feature:
+- **Documents**: reference features as `#SLUG` in design docs and architecture notes
+- **File names**: design docs are named `doc/<slug-lowercase>-design.md` (e.g. `doc/xfail-design.md`)
+- **Test names**: test suite or test method names include the slug in lowercase (e.g. `XfailTest`, `SkipTest`)
+- **Commit messages**: prefix the subject with the slug in lowercase, e.g. `xfail: add ExpectFail builder method`
+
 Process for adding features:
 
-1. Add the feature to `doc/requirements.md` with `[TODO]`
+1. Add the feature to `doc/requirements.md` with `[TODO]` and a new unique `#SLUG`
 2. Update the architecture overview
 3. Add detailed architecture and design decision documentation
 
