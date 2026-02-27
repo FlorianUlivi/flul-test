@@ -25,7 +25,8 @@ class Suite {
     // Definition is in registry.hpp, after Registry is fully defined.
     static void AddTests(
         Registry& r, std::string_view suite_name,
-        std::initializer_list<std::pair<std::string_view, void (Derived::*)()>> tests);
+        std::initializer_list<std::pair<std::string_view, void (Derived::*)()>> tests,
+        std::initializer_list<std::string_view> tags = {});
 
    protected:
     Suite() = default;

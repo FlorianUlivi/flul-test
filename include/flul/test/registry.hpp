@@ -20,7 +20,8 @@ class Registry {
    public:
     template <typename S>
         requires std::derived_from<S, Suite<S>> && std::default_initializable<S>
-    void Add(std::string_view suite_name, std::string_view test_name, void (S::*method)()) {
+    void Add(std::string_view suite_name, std::string_view test_name, void (S::*method)(),
+             std::initializer_list<std::string_view> tags = {}) {
         entries_.push_back({
             suite_name,
             test_name,
@@ -35,6 +36,7 @@ class Registry {
                 }
                 instance.TearDown();
             },
+            std::vector<std::string_view>(tags),
         });
     }
 
@@ -48,9 +50,46 @@ class Registry {
         });
     }
 
+    void FilterByTag(std::span<const std::string_view> include_tags) {
+        if (include_tags.empty()) {
+            return;
+        }
+        std::erase_if(entries_, [include_tags](const TestEntry& e) {
+            return !std::ranges::any_of(include_tags,
+                                        [&e](std::string_view tag) { return e.HasTag(tag); });
+        });
+    }
+
+    void ExcludeByTag(std::span<const std::string_view> exclude_tags) {
+        if (exclude_tags.empty()) {
+            return;
+        }
+        std::erase_if(entries_, [exclude_tags](const TestEntry& e) {
+            return std::ranges::any_of(exclude_tags,
+                                       [&e](std::string_view tag) { return e.HasTag(tag); });
+        });
+    }
+
     void List() const {
         for (const auto& e : entries_) {
             std::println("{}::{}", e.suite_name, e.test_name);
+        }
+    }
+
+    void ListVerbose() const {
+        for (const auto& e : entries_) {
+            if (e.tags.empty()) {
+                std::println("{}::{}", e.suite_name, e.test_name);
+            } else {
+                std::string tag_str;
+                for (std::size_t i = 0; i < e.tags.size(); ++i) {
+                    if (i > 0) {
+                        tag_str += ", ";
+                    }
+                    tag_str += e.tags[i];
+                }
+                std::println("{}::{} [{}]", e.suite_name, e.test_name, tag_str);
+            }
         }
     }
 
@@ -63,9 +102,10 @@ class Registry {
 template <typename Derived>
 void Suite<Derived>::AddTests(
     Registry& r, std::string_view suite_name,
-    std::initializer_list<std::pair<std::string_view, void (Derived::*)()>> tests) {
+    std::initializer_list<std::pair<std::string_view, void (Derived::*)()>> tests,
+    std::initializer_list<std::string_view> tags) {
     for (const auto& [name, method] : tests) {
-        r.Add<Derived>(suite_name, name, method);
+        r.Add<Derived>(suite_name, name, method, tags);
     }
 }
 
