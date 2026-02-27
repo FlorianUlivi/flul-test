@@ -28,6 +28,9 @@ void Register(flul::test::Registry& r);
 namespace tag_test {
 void Register(flul::test::Registry& r);
 }
+namespace tag_adversarial_test {
+void Register(flul::test::Registry& r);
+}
 
 auto main(int argc, char* argv[]) -> int {
     flul::test::Registry registry;
@@ -41,6 +44,7 @@ auto main(int argc, char* argv[]) -> int {
     run_test::Register(registry);
     fixture_test::Register(registry);
     tag_test::Register(registry);
+    tag_adversarial_test::Register(registry);
 
     return flul::test::Run(argc, argv, registry);
 }

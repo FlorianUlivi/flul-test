@@ -56,7 +56,7 @@ executables from the active LLVM toolchain.
 
 #### Per-Test Metadata
 
-1. **Tags** `[TODO]` `#TAG` - Annotate individual tests with string labels for cross-suite selection
+1. **Tags** `[DONE]` `#TAG` - Annotate individual tests with string labels for cross-suite selection
    - Tags are assigned at registration time as an optional argument to `Register()`
    - Multiple tags per test are supported
    - `--tag <tag>` CLI flag runs only tests carrying that tag (repeatable; multiple flags are OR-combined)
