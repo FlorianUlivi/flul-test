@@ -45,11 +45,14 @@ executables from the active LLVM toolchain.
 3. **Randomized Execution Order** `[TODO]` `#RAND` - Shuffle test execution order to catch ordering dependencies
    - Default is fixed (deterministic) order; opt-in via `--randomize` CLI flag
    - Randomization applies at two levels: suite order, and test order within each suite
-   - The RNG seed is printed at the start of the run so the order is reproducible
-   - `--seed <N>` CLI flag accepts an integer seed to replay a specific order
+   - The RNG seed is printed at the start of the run, before any test output, in the format `[seed: N]`, so the order is reproducible
+   - `--seed <N>` CLI flag accepts a non-negative 32-bit integer seed (`uint32_t` range: 0–4294967295) to replay a specific order
    - `--randomize` with `--seed <N>` uses the provided seed instead of a random one
    - `--seed <N>` without `--randomize` implicitly enables randomization as if `--randomize` had been passed
+   - An out-of-range or non-integer value passed to `--seed` shall cause the runner to exit with a non-zero exit code and a descriptive error message
    - Compose with `--filter` and `--tag`: filtering happens first, then randomization is applied to the surviving tests
+   - `--list` and `--list-verbose` output is unaffected by `--randomize` or `--seed`; listing always uses the fixed registration order
+   - Tests are executed and reported in the randomized order (output order matches execution order)
 
 #### Per-Test Metadata
 
@@ -81,11 +84,12 @@ executables from the active LLVM toolchain.
    - The `--list-verbose` output includes the `[skip]` marker
    - Skip is set at registration time and cannot be toggled via CLI flags
    - The summary line includes the skip count alongside pass/fail/xfail/xpass counts
-4. **Timeout** `[TODO]` `#TMO` - Forcibly stop tests that exceed a per-test time limit
+4. **Timeout** `[TODO]` `#TMO` - Flag tests that exceed a per-test time limit
    - Timeout is per-test metadata set via the fluent `Test<Derived>` builder's `.Timeout(duration)` method, where `duration` is a `std::chrono::duration`
-   - A test that exceeds its timeout is forcibly stopped and reported as **TIMEOUT**
-   - A TIMEOUT counts as a failure for the overall exit code
-   - Timeout is orthogonal to tags and filtering: it is applied after filtering, so a filtered-out test is never subject to its timeout
+   - After a test completes, the runner compares elapsed time against the timeout; if exceeded, the outcome is overridden to **TIMEOUT**
+   - TIMEOUT counts as a failure for the overall exit code
+   - The framework does **not** interrupt or abort a running test — a hung test still blocks. Timeout only detects tests that ran too long after they finish.
+   - Timeout is orthogonal to tags and filtering: applied after filtering, so a filtered-out test is never subject to its timeout
    - The `--list` output is unchanged (no marker added), preserving CTest discovery compatibility
    - The `--list-verbose` output includes the `[timeout: Xms]` marker
    - Timeout is set at registration time and cannot be toggled via CLI flags

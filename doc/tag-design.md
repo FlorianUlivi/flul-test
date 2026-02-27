@@ -100,12 +100,14 @@ New CLI flags: `--tag <tag>` (repeatable), `--exclude-tag <tag>` (repeatable),
 Execution order in `Run()`:
 
 1. Parse all CLI args
-2. `registry.Filter(pattern)` if `--filter`
-3. `registry.FilterByTag(include_tags)` if any `--tag` flags
-4. `registry.ExcludeByTag(exclude_tags)` if any `--exclude-tag` flags
-5. If `--list`: `registry.List()`, return 0
-6. If `--list-verbose`: `registry.ListVerbose()`, return 0
-7. Otherwise: `Runner(registry).RunAll()`
+2. Validate `--seed` value if present (fail fast on invalid input)
+3. `registry.Filter(pattern)` if `--filter`
+4. `registry.FilterByTag(include_tags)` if any `--tag` flags
+5. `registry.ExcludeByTag(exclude_tags)` if any `--exclude-tag` flags
+6. If `--list`: `registry.List()`, return 0
+7. If `--list-verbose`: `registry.ListVerbose()`, return 0
+8. If `--randomize` or `--seed`: print `[seed: N]`, `registry.Shuffle(seed)` (see `doc/rand-design.md`)
+9. `Runner(registry).RunAll()`
 
 `--list` and `--list-verbose` respect all filters — they show only the tests
 that would run.
@@ -170,6 +172,10 @@ filtering narrows the set before tag filtering iterates.
 ## 6. Feature Changelog
 
 Initial version. No prior `doc/tag-design.md` exists.
+
+**v1.1** — Added `#RAND` shuffle step (step 8) to section 4.4 execution order.
+Listing steps (6-7) remain before shuffle, ensuring `--list`/`--list-verbose`
+are unaffected by randomization.
 
 **Breaking changes to existing code:**
 

@@ -13,6 +13,12 @@ package "flul::test" {
         + TearDown() : void
     }
 
+    class "Test<Derived>" as TestBuilder <<builder>> {
+        + ExpectFail() : Test<Derived>&
+        + Skip() : Test<Derived>&
+        + Timeout(duration) : Test<Derived>&
+    }
+
     class Registry {
         + Add(metadata, callable) : void
         + Tests() : span<TestEntry>
@@ -20,6 +26,7 @@ package "flul::test" {
         + FilterByTag(tag) : void
         + ExcludeByTag(tag) : void
         + List() : void
+        + ListVerbose() : void
         + Shuffle(seed) : void
     }
 
@@ -27,6 +34,14 @@ package "flul::test" {
         + Runner(Registry&)
         + RunAll() : int
     }
+
+    note as N_tmo
+        After test completes, compare
+        elapsed time to metadata.timeout.
+        If exceeded → override outcome
+        to Timeout. Just log.
+    end note
+    Runner .. N_tmo
 
     class "Expect<T>" as Expect {
         + Expect(actual, loc = source_location::current())
@@ -54,10 +69,22 @@ package "flul::test" {
         + location : source_location
     }
 
+    enum Outcome {
+        Pass
+        Fail
+        XFail
+        XPass
+        Skip
+        Timeout
+    }
+
     struct TestMetadata {
         + suite_name : string_view
         + test_name : string_view
         + tags : vector<string_view>
+        + xfail : bool
+        + skip : bool
+        + timeout : optional<chrono::milliseconds>
     }
 
     struct TestEntry {
@@ -67,7 +94,7 @@ package "flul::test" {
 
     struct TestResult {
         + metadata : reference_wrapper<const TestMetadata>
-        + passed : bool
+        + outcome : Outcome
         + duration : chrono::nanoseconds
         + error : optional<AssertionError>
     }
@@ -78,7 +105,8 @@ package "flul::test" {
 
     note as N_cli
         CLI flags:
-        --list, --filter <pattern>
+        --list, --list-verbose
+        --filter <pattern>
         --tag <tag>, --exclude-tag <tag>
         --randomize, --seed <N>
         --help
@@ -104,10 +132,13 @@ package "main()" as main <<external>> {
 
 MySuite -up-|> Suite : <<derives>>
 Suite ..> Registry : registers into
+Suite ..> TestBuilder : produces
+TestBuilder ..> Registry : configures entry in
 Run --> Runner : creates and runs
 Run --> Registry : passes to Runner
 Runner --> Registry : reads tests from
 Runner ..> TestResult : produces
+TestResult --> Outcome : classifies by
 Expect ..> AssertionError : throws on failure
 ExpectCallable ..> AssertionError : throws on failure
 Runner ..> AssertionError : catches per test
