@@ -40,58 +40,35 @@ From `doc/requirements.md`, feature `#XFAIL`:
 ### 4.1 `TestMetadata` (new: `include/flul/test/test_metadata.hpp`)
 
 ```cpp
-namespace flul::test {
-
 struct TestMetadata {
     std::string_view suite_name;
     std::string_view test_name;
-    bool xfail = false;
+    bool xfail;
 
     auto FullName() const -> std::string;
 };
-
-}  // namespace flul::test
 ```
 
-**Fields:** `suite_name` and `test_name` move here from `TestEntry`. The `xfail`
-flag defaults to `false`. Future features add fields here: `tags` (`#TAG`),
-`skip` (`#SKIP`), `timeout` (`#TMO`).
+`suite_name` and `test_name` move here from `TestEntry`. Future features add
+fields here: `tags` (`#TAG`), `skip` (`#SKIP`), `timeout` (`#TMO`).
 
-**Ownership:** `string_view` members require static storage duration (string
-literals), same convention as today.
-
-**`FullName()`** returns `std::format("{}::{}", suite_name, test_name)`.
-Centralizes the formatting used by `Filter`, `List`, `PrintResult`.
+`string_view` members require static storage duration (string literals), same
+convention as today. `FullName()` returns the `Suite::Test` format used by
+`Filter`, `List`, and `PrintResult`.
 
 ### 4.2 `Outcome` (new: `include/flul/test/outcome.hpp`)
 
 ```cpp
-namespace flul::test {
-
 enum class Outcome { Pass, Fail, XFail, XPass };
 
-}  // namespace flul::test
+constexpr auto IsSuccess(Outcome o) -> bool;
 ```
 
 Replaces `bool passed` in `TestResult`. Future features extend this enum:
 `Skip` (`#SKIP`), `Timeout` (`#TMO`).
 
-**Exit-code classification:**
-
-| Outcome | Counts as |
-|---------|-----------|
-| Pass    | pass      |
-| Fail    | fail      |
-| XFail   | pass      |
-| XPass   | fail      |
-
-A free function encapsulates this:
-
-```cpp
-constexpr auto IsSuccess(Outcome o) -> bool {
-    return o == Outcome::Pass || o == Outcome::XFail;
-}
-```
+`IsSuccess` returns true for `Pass` and `XFail` — these count as success for
+exit-code purposes.
 
 ### 4.3 `TestEntry` (modified: `include/flul/test/test_entry.hpp`)
 
@@ -108,22 +85,22 @@ Replaces flat `suite_name` / `test_name` with `TestMetadata`. Breaking change.
 
 ```cpp
 struct TestResult {
-    std::reference_wrapper<const TestMetadata> metadata;
+    /* non-owning reference to TestEntry::metadata */
     Outcome outcome;
     std::chrono::nanoseconds duration;
     std::optional<AssertionError> error;
 };
 ```
 
-- `metadata` is a reference to the `TestEntry::metadata` owned by `Registry`.
-  Safe because `Registry` outlives `Runner::RunAll()`.
-- `outcome` replaces `bool passed`. Breaking change.
+`metadata` references (does not copy) the `TestMetadata` owned by the
+corresponding `TestEntry`. Safe because `Registry` owns `TestEntry` objects
+that outlive all `TestResult` instances within `RunAll()`.
+
+`outcome` replaces `bool passed`. Breaking change.
 
 ### 4.5 `Test<Derived>` builder (new: `include/flul/test/test.hpp`)
 
 ```cpp
-namespace flul::test {
-
 template <typename Derived>
 class Test {
    public:
@@ -131,80 +108,25 @@ class Test {
          std::string_view test_name, void (Derived::*method)());
 
     auto ExpectFail() -> Test&;
-
-   private:
-    TestEntry& entry_;  // reference into Registry's vector — see lifetime note
 };
-
-}  // namespace flul::test
 ```
 
-**Construction and lifetime:**
+**Eager registration:** The constructor immediately registers the test via
+`Registry::Add` and stores a handle to the created entry. Builder methods
+(`ExpectFail`) mutate the entry's metadata in place and return `*this` for
+chaining.
 
-The constructor immediately registers the test into the `Registry` (calls
-`Registry::Add`) and stores a reference to the newly created `TestEntry`.
-Builder methods like `ExpectFail()` mutate the entry's metadata in place.
+**Lifetime constraint:** The builder must not outlive the `Register()` call.
+No concurrent `Add` calls may occur while a builder's handle is live, because
+vector growth could invalidate it. This is naturally satisfied: each builder
+chain completes as a single statement before the next `Add`.
 
-```cpp
-template <typename Derived>
-Test<Derived>::Test(Registry& registry, std::string_view suite_name,
-                    std::string_view test_name, void (Derived::*method)())
-    : entry_(registry.Add<Derived>(suite_name, test_name, method)) {}
+**Why eager, not deferred?** Deferred registration (accumulate state, commit
+on destruction or `.Done()`) adds destructor logic, move semantics, and risk
+of forgetting `.Done()`. Eager registration makes the builder a thin handle
+with no ownership responsibilities.
 
-template <typename Derived>
-auto Test<Derived>::ExpectFail() -> Test& {
-    entry_.metadata.xfail = true;
-    return *this;
-}
-```
-
-**Why eager registration (not deferred)?** Deferred registration would require
-the builder to own the metadata and callable, then commit on destruction or an
-explicit `.Done()` call. Eager registration is simpler: the entry exists in the
-registry immediately, and the builder just pokes at its metadata. No
-destructor logic, no moved-from states, no risk of forgetting `.Done()`.
-
-**Why `entry_` reference is safe:** The builder is a temporary or local variable
-used only within `Register()`. It does not outlive the `Register()` call.
-The `Registry::entries_` vector must not reallocate while a builder holds a
-reference. This is guaranteed because builders are used one at a time within
-`Register()` and the reference is not stored beyond the builder chain.
-
-**Important:** `Registry::Add` must return `TestEntry&` (reference to the
-back-inserted element). If the vector reallocates during a subsequent `Add`
-while a previous builder's reference is still live, the reference is
-invalidated. This is safe in practice because each builder chain completes
-(including all `.ExpectFail()` calls) before the next `Add` call. The design
-doc for `#TAG` or implementer should add a note about this constraint.
-
-**Deducing `this` for chaining:** The builder returns `Test&` from `ExpectFail()`.
-Deducing `this` is not needed here because `Test<Derived>` is always used as
-itself (no further derivation). Simple `Test&` return is sufficient.
-
-### 4.6 `Registry::Add` return type change
-
-```cpp
-template <typename S>
-    requires std::derived_from<S, Suite<S>> && std::default_initializable<S>
-auto Add(std::string_view suite_name, std::string_view test_name,
-         void (S::*method)()) -> TestEntry&;
-```
-
-Returns a reference to the newly pushed `TestEntry`. This is the only change
-to `Registry::Add`'s signature. The implementation is identical except for
-using `TestMetadata` and returning `entries_.back()`.
-
-### 4.7 `Suite<Derived>::AddTests` — unchanged semantics
-
-`AddTests` continues to work for bulk registration without the builder. It
-calls `Registry::Add` in a loop and discards the returned references. Users
-who do not need per-test metadata (xfail, skip, timeout) keep using `AddTests`
-with no change to their code (beyond the internal `TestMetadata` restructuring
-which is invisible to them).
-
-### 4.8 Per-test registration with builder
-
-For per-test metadata, users call `Test<Derived>` directly in `Register()`:
+User-facing API:
 
 ```cpp
 static void Register(Registry& r) {
@@ -219,79 +141,34 @@ static void Register(Registry& r) {
 }
 ```
 
-The builder is constructed as a temporary. The `.ExpectFail()` call mutates the
-already-registered entry's metadata, then the temporary is destroyed. No
-separate `AddTest()` method on `Suite` is needed — the `Test<Derived>`
-constructor is the entry point.
+### 4.6 `Registry` changes (modified: `include/flul/test/registry.hpp`)
 
-### 4.9 `Runner` changes
+- `Add` returns a reference to the newly created `TestEntry` (was `void`).
+  This is the handle used by `Test<Derived>`.
+- New method: `ListVerbose()` — prints one line per test with metadata
+  markers in brackets (e.g., `[xfail]`). Tests without markers have no
+  bracket suffix.
 
-**`RunTest`** — after calling `entry.callable()`, determines `Outcome`:
+`Suite<Derived>::AddTests` is unchanged in interface. It calls `Add` in a
+loop and discards the returned references.
 
-```cpp
-static auto RunTest(const TestEntry& entry) -> TestResult {
-    // ... timing + try/catch as before ...
+### 4.7 `Runner` changes (modified: `include/flul/test/runner.hpp`)
 
-    // After determining raw pass/fail:
-    bool raw_passed = /* true if no exception */;
-    Outcome outcome;
-    if (entry.metadata.xfail) {
-        outcome = raw_passed ? Outcome::XPass : Outcome::XFail;
-    } else {
-        outcome = raw_passed ? Outcome::Pass : Outcome::Fail;
-    }
-    // return TestResult with outcome
-}
-```
+`RunTest` determines `Outcome` from the raw pass/fail result and
+`metadata.xfail`. The callable itself is unaware of xfail.
 
-The xfail logic is entirely in `RunTest`. The callable itself is unaware of
-xfail — it throws or does not throw, same as always.
+`PrintResult` displays the outcome label (PASS, FAIL, XFAIL, XPASS). Error
+details are printed for both FAIL and XFAIL (diagnostics are useful even for
+expected failures). No error details for XPASS (there is no assertion error).
 
-**`PrintResult`** — maps `Outcome` to display tag:
+`PrintSummary` counts each outcome category. All counts are shown (including
+zeros) for consistency.
 
-| Outcome | Display   |
-|---------|-----------|
-| Pass    | `PASS`    |
-| Fail    | `FAIL`    |
-| XFail   | `XFAIL`   |
-| XPass   | `XPASS`   |
+Exit code: success iff all outcomes satisfy `IsSuccess`.
 
-For XFail/XPass, the error details are still printed (useful for diagnostics).
+### 4.8 `Run()` changes (modified: `include/flul/test/run.hpp`)
 
-**`PrintSummary`** — counts each outcome category:
-
-```
-4 tests, 1 passed, 1 failed, 1 xfail, 1 xpass
-```
-
-Zero counts are still shown for consistency and parseability.
-
-**`RunAll` exit code** — uses `IsSuccess`:
-
-```cpp
-return std::ranges::all_of(results, [](const TestResult& r) {
-    return IsSuccess(r.outcome);
-}) ? 0 : 1;
-```
-
-### 4.10 `Registry::ListVerbose`
-
-This is introduced by `#XFAIL` (not `#TAG`, since `#TAG` is not yet
-implemented). It prints markers for metadata that is set:
-
-```
-MySuite::TestNormal
-MySuite::TestBroken [xfail]
-```
-
-If a test has no metadata markers, no brackets are appended (identical to
-`--list` output). Future features append their markers in the same bracket
-group: `[xfail, skip]`, `[xfail, timeout: 500ms]`, etc.
-
-### 4.11 `Run()` changes
-
-New CLI flag: `--list-verbose`. Parsed alongside existing flags. Execution
-order:
+New CLI flag: `--list-verbose`. Execution order:
 
 1. Parse CLI args (filter, list, list-verbose, help)
 2. Apply `registry.Filter(pattern)` if `--filter`
@@ -307,8 +184,8 @@ order:
 | `include/flul/test/outcome.hpp` | **New** — `Outcome` enum + `IsSuccess` |
 | `include/flul/test/test.hpp` | **New** — `Test<Derived>` builder |
 | `include/flul/test/test_entry.hpp` | **Modified** — uses `TestMetadata` |
-| `include/flul/test/test_result.hpp` | **Modified** — `Outcome` + `reference_wrapper` |
-| `include/flul/test/registry.hpp` | **Modified** — `Add` returns `TestEntry&`, `ListVerbose` added |
+| `include/flul/test/test_result.hpp` | **Modified** — `Outcome`, metadata reference |
+| `include/flul/test/registry.hpp` | **Modified** — `Add` returns ref, `ListVerbose` added |
 | `include/flul/test/runner.hpp` | **Modified** — `Outcome`-based logic |
 | `include/flul/test/run.hpp` | **Modified** — `--list-verbose` flag |
 
@@ -320,15 +197,14 @@ All types remain in `flul::test`. No new namespaces.
 
 ### `Test<Derived>` builder with eager registration
 
-The builder registers the test immediately on construction and returns
-references to mutate metadata. The alternative — deferred registration where
-the builder accumulates state and commits on destruction — adds complexity:
+The builder registers the test immediately on construction and returns a
+handle to mutate metadata. The alternative — deferred registration where the
+builder accumulates state and commits on destruction — adds complexity:
 destructor must handle the commit, move semantics must be correct, and
 forgetting `.Done()` or relying on destruction order becomes a bug source.
 
-Eager registration means the builder is just a thin handle to an existing
-entry. The trade-off is that a partially-configured entry briefly exists in
-the registry, but since `Register()` runs to completion before any test
+The trade-off is that a partially-configured entry briefly exists in the
+registry, but since `Register()` runs to completion before any test
 executes, this is harmless.
 
 ### `Outcome` enum replaces `bool passed` now, not incrementally
@@ -338,37 +214,26 @@ a breaking change but creates two parallel representations of pass/fail status.
 A single `Outcome` enum is cleaner and extends naturally for `#SKIP` and `#TMO`.
 Since no backwards compatibility is required, this is the right time.
 
-### `IsSuccess` as a free function, not a method
-
-`Outcome` is an enum class. Adding methods requires a separate utility. A
-`constexpr` free function is the simplest approach and avoids wrapping the enum
-in a class.
-
 ### No `AddTest` (singular) on `Suite`
 
 The user constructs `Test<MySuite>(registry, ...)` directly. Adding
 `Suite::AddTest` that returns a `Test<Derived>` would save one template
-argument but adds a forwarding layer with no real benefit. The `Test<Derived>`
-constructor is explicit and self-documenting.
+argument but adds a forwarding layer with no real benefit.
 
-### `TestResult` holds `reference_wrapper<const TestMetadata>`
+### `TestResult` references metadata, does not copy
 
-Same rationale as in `#TAG` design: avoids copying metadata (which will grow
-with tags vector), and the lifetime is safe because `Registry` outlives
-`RunAll()`.
+Avoids copying metadata (which will grow with tags vector). The lifetime is
+safe because `Registry` outlives `RunAll()`.
 
 ### `--list-verbose` introduced with `#XFAIL`, not `#TAG`
 
-Since `#TAG` is not yet implemented, and `#XFAIL` is the first feature that
-needs `--list-verbose`, it is introduced here. When `#TAG` is implemented, it
-will append tags to the same bracket group.
+`#XFAIL` is the first feature needing `--list-verbose`. When `#TAG` is
+implemented, it appends tags to the same bracket group.
 
 ### Xfail error details still printed
 
-When a test is XFAIL (expected failure, assertion threw), the error details
-are still printed. This helps developers track what the expected failure
-actually is, rather than silently swallowing diagnostics. For XPASS, there
-is no error to print.
+XFAIL prints the assertion error for diagnostics — developers should see what
+the expected failure actually is rather than having it silently swallowed.
 
 ## 6. Feature Changelog
 
@@ -378,11 +243,8 @@ Initial version. No prior `doc/xfail-design.md` exists.
 
 - `TestEntry` struct layout changes (flat name fields replaced by `TestMetadata`)
 - `TestResult` struct layout changes (`bool passed` replaced by `Outcome`,
-  flat name fields replaced by `reference_wrapper<const TestMetadata>`)
+  flat name fields replaced by metadata reference)
 - `Registry::Add` return type changes from `void` to `TestEntry&`
-- `Runner::RunTest`, `Runner::PrintResult`, `Runner::PrintSummary` must adapt
-  to `Outcome` and `TestMetadata`
-- `Runner::RunAll` exit-code logic changes from `&TestResult::passed` to
-  `IsSuccess(r.outcome)`
+- `Runner` methods must adapt to `Outcome` and `TestMetadata`
 - All existing test code that accesses `TestEntry` or `TestResult` fields
   directly must be updated

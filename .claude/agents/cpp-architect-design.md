@@ -32,14 +32,36 @@ The document must contain exactly these sections:
 1. **Overview** — one paragraph summarizing the feature's purpose
 2. **Requirements Reference** — link or list the relevant items from `requirements.md`
 3. **Design Goals** — 3–6 bullet points stating what this design optimizes for
-4. **C++ Architecture** — class/interface breakdown:
-   - Class names, responsibilities, key public methods
-   - Ownership and lifetime semantics (RAII, unique_ptr, shared_ptr, value types)
-   - Template usage where it adds clarity without complexity
+4. **C++ Architecture** — the architectural WHAT and WHERE, not the implementation HOW:
+   - Types: names, responsibilities, field layouts (struct members with types)
+   - Interfaces: public method **declarations** (signature only, no bodies)
+   - Relationships: who owns what, who calls what, lifetime guarantees
+   - Behavior: describe in prose what each method does; the implementer writes the code
    - Namespace placement
+   - File map: which files are new/modified
 5. **Key Design Decisions** — explain WHY, not WHAT; document trade-offs
 6. **Feature Changelog** — changes compared to previous version (if updating); note breaking changes
 7. **Open Questions** — unresolved decisions (if none, omit this section)
+
+#### Detail-level rules
+
+**Include:**
+- Struct/class field layouts (field name + type)
+- Method signatures (return type, name, parameters) — declaration only
+- Enum definitions (variants are architectural)
+- User-facing API usage examples (how `Register()` looks to the caller)
+- Ownership and lifetime invariants in prose
+- State transitions, filtering order, execution sequences in prose
+
+**Do NOT include:**
+- Method bodies or implementations
+- Algorithm pseudocode (unless the algorithm IS the design decision)
+- Try/catch structure, loop internals, ranges pipelines
+- Exact smart-pointer or wrapper choices when multiple options work — state the ownership rule and let the implementer choose the spelling
+- Default values for fields (unless the default IS the design contract)
+- Tables mapping enums to display strings (that's presentation logic)
+
+**Litmus test:** "Would changing this require a design review, or just a code review?" If only a code review — leave it to Phase 4.
 
 ### Step 3: Produce Output
 
