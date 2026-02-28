@@ -40,7 +40,23 @@ From `doc/requirements.md`, design decisions:
 
 ## 4. C++ Architecture
 
-### 4.1 `TestMetadata` (new: `include/flul/test/test_metadata.hpp`)
+### 4.1 Tag Validation
+
+A tag is valid if and only if it is non-empty and every character matches the
+pattern `[a-zA-Z0-9_-]` (ASCII alphanumeric, hyphen, underscore). Formally,
+the tag must match the regex `^[a-zA-Z0-9_-]+$`.
+
+Invalid tags — including empty strings, whitespace-only strings, and strings
+containing characters outside the allowlist (e.g., `[`, `]`, spaces) — cause
+the program to print a descriptive diagnostic to `std::cerr` identifying the
+offending tag and then call `std::terminate()`. This is a hard abort at
+registration time.
+
+Validation is performed inside `Registry::Add`, after deduplication and before
+inserting tags into the `TestMetadata::tags` set. Because `AddTests` delegates
+to `Add`, all registration paths are covered.
+
+### 4.2 `TestMetadata` (new: `include/flul/test/test_metadata.hpp`)
 
 ```cpp
 struct TestMetadata {
@@ -65,7 +81,7 @@ no tags are provided.
 
 `HasTag` returns whether the given tag is present in the set.
 
-### 4.2 `TestEntry` (modified: `include/flul/test/test_entry.hpp`)
+### 4.3 `TestEntry` (modified: `include/flul/test/test_entry.hpp`)
 
 ```cpp
 struct TestEntry {
@@ -82,7 +98,7 @@ All code that currently accesses `entry.suite_name`, `entry.test_name`,
 `entry.tags`, or `entry.HasTag(...)` must go through `entry.metadata` instead
 (e.g., `entry.metadata.suite_name`, `entry.metadata.HasTag(...)`).
 
-### 4.3 `TestResult` (modified: `include/flul/test/test_result.hpp`)
+### 4.4 `TestResult` (modified: `include/flul/test/test_result.hpp`)
 
 ```cpp
 struct TestResult {
@@ -106,7 +122,7 @@ All code that currently accesses `result.suite_name` or `result.test_name`
 must go through `result.metadata.get()` instead (e.g.,
 `result.metadata.get().suite_name`).
 
-### 4.4 `Suite<Derived>::AddTests` (modified signature)
+### 4.5 `Suite<Derived>::AddTests` (modified signature)
 
 ```cpp
 static void AddTests(
@@ -122,7 +138,7 @@ tags are a suite-level or logical-group concern, not per-method.
 For per-test tags, users use the `Test<Derived>` builder (from `#XFAIL`)
 with a `.Tag("x")` method.
 
-### 4.5 `Registry` (modified: `include/flul/test/registry.hpp`)
+### 4.6 `Registry` (modified: `include/flul/test/registry.hpp`)
 
 Methods and signature changes:
 
@@ -167,7 +183,7 @@ bracket suffix.
 **`Filter`** — reads `entry.metadata.suite_name` and
 `entry.metadata.test_name` to form the qualified name for pattern matching.
 
-### 4.6 `Runner` (modified: `include/flul/test/runner.hpp`)
+### 4.7 `Runner` (modified: `include/flul/test/runner.hpp`)
 
 `RunTest` constructs `TestResult` with a `std::reference_wrapper<const
 TestMetadata>` pointing to the entry's metadata, instead of copying
@@ -182,7 +198,7 @@ remains unchanged; `passed` is still a direct field on `TestResult`.
 Tags do not affect test execution or result reporting — they are purely a
 filtering concern.
 
-### 4.7 `Run()` (modified: `include/flul/test/run.hpp`)
+### 4.8 `Run()` (modified: `include/flul/test/run.hpp`)
 
 New CLI flags: `--tag <tag>` (repeatable), `--exclude-tag <tag>` (repeatable),
 `--list-verbose`.
@@ -257,6 +273,28 @@ next `Add` call.
 **Trade-off:** Callers must not store the returned reference across `Add`
 calls. This is enforced by convention (builder is a temporary) not by the type
 system. Acceptable because the builder pattern is the only consumer.
+
+### Hard abort on invalid tag content
+
+Tags are validated against `[a-zA-Z0-9_-]+` at registration time. An invalid
+tag causes a diagnostic on `std::cerr` followed by `std::terminate()`.
+
+**Why an allowlist:** A denylist (rejecting specific bad characters) is fragile
+and invites edge cases. An allowlist is unambiguous, easy to document, and
+guarantees that tag strings are safe for all output contexts — including
+`--list-verbose` bracket formatting, where characters like `[`, `]`, or
+whitespace would produce ambiguous or unparseable output.
+
+**Why abort instead of warning or silently ignoring:** Tags are static labels
+set by the developer at registration time, not user input. A bad tag is always
+a programming error. Aborting loudly at registration ensures the mistake is
+caught immediately during development, rather than producing silently wrong
+filtering behavior at runtime. This is consistent with how other invariant
+violations (e.g., duplicate test names) are handled in this codebase.
+
+**Trade-off:** Abort prevents any tests from running if a single tag is
+invalid. This is intentional — running tests with broken metadata would
+undermine the filtering system's reliability.
 
 ### Tags stored as `std::set<std::string_view>`
 
@@ -361,3 +399,18 @@ Changes from v1.1:
   that ignore the return value are unaffected
 - All test files that construct `TestEntry` or `TestResult` directly, or
   access their fields, must be updated
+
+**v1.3** — Tag content validation (addresses KI-004).
+
+Changes from v1.2:
+
+- Section 4.1 (new): **Tag Validation** — specifies the `[a-zA-Z0-9_-]+`
+  allowlist, abort-on-invalid behavior via `std::cerr` + `std::terminate()`,
+  and validation call site in `Registry::Add`
+- Sections 4.2-4.8: renumbered from 4.1-4.7 (no content changes)
+- Section 5: added design decision "Hard abort on invalid tag content"
+  explaining the allowlist rationale, abort-vs-warning trade-off, and
+  consistency with existing invariant enforcement
+
+No breaking changes to existing valid code. Previously accepted invalid tags
+(empty, whitespace, bracket-containing) will now cause a hard abort.

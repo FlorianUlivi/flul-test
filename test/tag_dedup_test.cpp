@@ -1,3 +1,6 @@
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -48,6 +51,23 @@ auto CountOccurrences(const std::string& haystack, const std::string& needle) ->
         pos += needle.size();
     }
     return count;
+}
+
+template <typename F>
+auto DiesOnTerminate(F fn) -> bool {
+    pid_t pid = fork();  // NOLINT(misc-const-correctness)
+    if (pid == 0) {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory,misc-include-cleaner)
+        freopen("/dev/null", "w", stderr);
+        fn();
+        _Exit(0);
+    }
+    int status = 0;
+    waitpid(pid, &status, 0);
+    if (WIFSIGNALED(status)) {  // NOLINT(hicpp-signed-bitwise)
+        return true;
+    }
+    return WIFEXITED(status) && WEXITSTATUS(status) != 0;  // NOLINT(hicpp-signed-bitwise)
 }
 
 }  // namespace
@@ -180,15 +200,15 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         Expect(reg.Tests()[0].metadata.tags.empty()).ToBeTrue();
     }
 
-    // --- Edge: dedup of empty string tags ---
+    // --- Edge: dedup of empty string tags — now causes std::terminate() ---
+    // Empty tags are invalid since KI-004 tag content validation was introduced.
+    // Dedup still happens before validation, but the single "" triggers abort.
 
     void TestDuplicateEmptyStringTagDeduped() {
-        Registry reg;
-        auto output = CaptureStderr(
-            [&] { reg.Add<TagDedupDummy>("S", "A", &TagDedupDummy::Alpha, {"", ""}); });
-        Expect(CountOccurrences(output, "[flul-test]")).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].metadata.HasTag("")).ToBeTrue();
+        Expect(DiesOnTerminate([] {
+            Registry reg;
+            reg.Add<TagDedupDummy>("S", "A", &TagDedupDummy::Alpha, {"", ""});
+        })).ToBeTrue();
     }
 
     // --- FilterByTag correctness after dedup ---

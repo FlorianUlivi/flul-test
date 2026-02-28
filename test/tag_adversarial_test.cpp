@@ -1,3 +1,6 @@
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include <iostream>
 #include <sstream>
 
@@ -31,29 +34,51 @@ auto MakeArgv(std::initializer_list<const char*> args) -> std::vector<char*> {
     return argv;
 }
 
+// Runs `fn` in a forked child process. Returns true if the child terminated
+// abnormally (signal or non-zero exit), which is the expected outcome when
+// std::terminate() is called.
+template <typename F>
+auto DiesOnTerminate(F fn) -> bool {
+    pid_t pid = fork();  // NOLINT(misc-const-correctness)
+    if (pid == 0) {
+        // Child: redirect stderr to /dev/null to suppress diagnostic output
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory,misc-include-cleaner)
+        freopen("/dev/null", "w", stderr);
+        fn();
+        // If fn() returns without terminating, exit normally (test should fail)
+        _Exit(0);
+    }
+    int status = 0;
+    waitpid(pid, &status, 0);
+    // Terminated by signal (e.g. SIGABRT from std::terminate/std::abort)
+    if (WIFSIGNALED(status)) {  // NOLINT(hicpp-signed-bitwise)
+        return true;
+    }
+    // Or exited with non-zero status (e.g. some platforms call _exit(1))
+    return WIFEXITED(status) && WEXITSTATUS(status) != 0;  // NOLINT(hicpp-signed-bitwise)
+}
+
 }  // namespace
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,readability-make-member-function-const)
 
 class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
    public:
-    // --- Boundary: empty tag string ---
+    // --- Boundary: empty tag string — now causes std::terminate() ---
 
     void TestEmptyStringTag() {
-        Registry reg;
-        reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {""});
-        Expect(reg.Tests()[0].metadata.HasTag("")).ToBeTrue();
-        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
+        Expect(DiesOnTerminate([] {
+            Registry reg;
+            reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {""});
+        })).ToBeTrue();
     }
 
     void TestFilterByEmptyStringTag() {
-        Registry reg;
-        reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {""});
-        reg.Add<TagAdvDummy>("S", "B", &TagAdvDummy::Beta);
-        std::vector<std::string_view> include = {""};
-        reg.FilterByTag(include);
-        Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("A"));
+        // Empty tag is now invalid: Add aborts before any filtering occurs.
+        Expect(DiesOnTerminate([] {
+            Registry reg;
+            reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {""});
+        })).ToBeTrue();
     }
 
     // --- Boundary: duplicate tags on same test ---
@@ -76,8 +101,8 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         // One duplicate ("fast" appears twice: second occurrence triggers warning)
         auto output = captured.str();
         Expect(output.empty()).ToBeFalse();
-        Expect(output.find("fast") != std::string::npos).ToBeTrue();
-        Expect(output.find("S::A") != std::string::npos).ToBeTrue();
+        Expect(output.contains("fast")).ToBeTrue();
+        Expect(output.contains("S::A")).ToBeTrue();
         // Only two unique tags stored
         Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{2});
     }
@@ -288,7 +313,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         Expect(reg.Tests()[0].metadata.HasTag("t20")).ToBeFalse();
     }
 
-    // --- Edge: tag that looks like a CLI flag ---
+    // --- Edge: tag that looks like a CLI flag (hyphens are valid) ---
 
     void TestTagValueLooksLikeFlag() {
         Registry reg;
@@ -353,23 +378,23 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         Expect(rc).ToEqual(0);
     }
 
-    // --- Edge: tags containing special characters ---
+    // --- Edge: tags containing special characters — now causes std::terminate() ---
 
     void TestTagWithSpecialCharacters() {
-        Registry reg;
-        reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"tag with spaces", "tag/slash"});
-        Expect(reg.Tests()[0].metadata.HasTag("tag with spaces")).ToBeTrue();
-        Expect(reg.Tests()[0].metadata.HasTag("tag/slash")).ToBeTrue();
-        Expect(reg.Tests()[0].metadata.HasTag("tag")).ToBeFalse();
+        // "tag with spaces" contains spaces which are not in [a-zA-Z0-9_-]
+        Expect(DiesOnTerminate([] {
+            Registry reg;
+            reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"tag-with-hyphens", "tag/slash"});
+        })).ToBeTrue();
     }
 
-    // --- Edge: tag containing bracket characters (could confuse --list-verbose output) ---
+    // --- Edge: tag containing bracket characters — now causes std::terminate() ---
 
     void TestTagContainingBrackets() {
-        Registry reg;
-        reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"[tricky]", "normal"});
-        Expect(reg.Tests()[0].metadata.HasTag("[tricky]")).ToBeTrue();
-        reg.ListVerbose();  // Output: S::A [[tricky], normal] -- nested brackets
+        Expect(DiesOnTerminate([] {
+            Registry reg;
+            reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"[tricky]", "normal"});
+        })).ToBeTrue();
     }
 
     // --- Multiple exclude tags ---
@@ -386,14 +411,53 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("C"));
     }
 
-    // --- Edge: tag with only whitespace ---
+    // --- Edge: tag with only whitespace — now causes std::terminate() ---
 
     void TestWhitespaceOnlyTag() {
-        Registry reg;
-        reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {" ", "\t"});
-        Expect(reg.Tests()[0].metadata.HasTag(" ")).ToBeTrue();
-        Expect(reg.Tests()[0].metadata.HasTag("\t")).ToBeTrue();
-        Expect(reg.Tests()[0].metadata.HasTag("")).ToBeFalse();
+        Expect(DiesOnTerminate([] {
+            Registry reg;
+            reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {" "});
+        })).ToBeTrue();
+    }
+
+    // --- Validation: diagnostic message mentions the offending tag ---
+
+    void TestInvalidTagDiagnosticMentionsTag() {
+        // Run in a child so the parent can capture stderr output before terminate
+        // We use a pipe to transfer the stderr content from child to parent.
+        int pipefd[2] = {};
+        pipe(pipefd);
+
+        pid_t pid = fork();  // NOLINT(misc-const-correctness)
+        if (pid == 0) {
+            close(pipefd[0]);
+            dup2(pipefd[1], STDERR_FILENO);
+            close(pipefd[1]);
+            Registry reg;
+            reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"bad tag"});
+            _Exit(0);
+        }
+
+        close(pipefd[1]);
+        std::string captured;
+        char buf[256] = {};
+        ssize_t n = 0;
+        while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
+            captured.append(buf, static_cast<std::size_t>(n));
+        }
+        close(pipefd[0]);
+        int status = 0;
+        waitpid(pid, &status, 0);
+
+        // Child must have terminated abnormally
+        // NOLINTBEGIN(misc-const-correctness)
+        bool died =
+            WIFSIGNALED(status) ||                            // NOLINT(hicpp-signed-bitwise)
+            (WIFEXITED(status) && WEXITSTATUS(status) != 0);  // NOLINT(hicpp-signed-bitwise)
+        // NOLINTEND(misc-const-correctness)
+        Expect(died).ToBeTrue();
+        // Diagnostic must mention the bad tag
+        Expect(captured.contains("bad tag")).ToBeTrue();
     }
 
     static void Register(Registry& r) {
@@ -443,6 +507,8 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
                 {"TestTagContainingBrackets", &TagAdversarialSuite::TestTagContainingBrackets},
                 {"TestMultipleExcludeTagFlags", &TagAdversarialSuite::TestMultipleExcludeTagFlags},
                 {"TestWhitespaceOnlyTag", &TagAdversarialSuite::TestWhitespaceOnlyTag},
+                {"TestInvalidTagDiagnosticMentionsTag",
+                 &TagAdversarialSuite::TestInvalidTagDiagnosticMentionsTag},
             });
     }
 };

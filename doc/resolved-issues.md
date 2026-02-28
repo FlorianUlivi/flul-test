@@ -2,6 +2,31 @@
 
 Issues moved here once fixed. See `doc/known-issues.md` for open issues.
 
+## KI-004 — No validation of tag content
+
+**Feature**: `#TAG`
+**Date discovered**: 2026-02-27
+**Status**: Resolved
+**Phase**: Implementation
+**Reproducer**: `test/tag_adversarial_test.cpp` — `TestEmptyStringTag`,
+`TestWhitespaceOnlyTag`, `TestTagContainingBrackets`
+
+Empty strings (`""`), whitespace-only strings (`" "`, `"\t"`), and strings
+containing bracket characters (`"[tricky]"`) were all accepted as valid tags,
+producing ambiguous `--list-verbose` output. The design document did not specify
+tag content validation rules.
+
+**Resolved**: 2026-02-28
+**Fix**: Added `Registry::IsValidTag(std::string_view)` private static helper
+that validates tags against `[a-zA-Z0-9_-]+`. `Registry::Add` now iterates over
+deduplicated tags after dedup and before insertion; for each invalid tag it
+prints a diagnostic to `std::cerr` and calls `std::terminate()`. Tests
+`TestEmptyStringTag`, `TestWhitespaceOnlyTag`, `TestTagContainingBrackets`,
+`TestFilterByEmptyStringTag`, `TestTagWithSpecialCharacters`, and
+`TestDuplicateEmptyStringTagDeduped` converted to death tests using
+`fork()`/`waitpid()`. New test `TestInvalidTagDiagnosticMentionsTag` verifies
+the diagnostic message content via pipe capture.
+
 ## KI-005 — Duplicate tags silently accepted
 
 **Feature**: `#TAG`

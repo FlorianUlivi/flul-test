@@ -14,21 +14,6 @@ class does not exist in the codebase. While `#XFAIL` is `[TODO]`, the design
 doc for `#TAG` references it as if it were already available. Per-test tagging
 (as opposed to group-level tagging via `AddTests`) is not possible.
 
-## KI-004 — No validation of tag content
-
-**Feature**: `#TAG`
-**Date discovered**: 2026-02-27
-**Status**: Open
-**Phase**: Implementation
-**Reproducer**: `test/tag_adversarial_test.cpp` — `TestEmptyStringTag`,
-`TestWhitespaceOnlyTag`, `TestTagContainingBrackets`
-
-Empty strings (`""`), whitespace-only strings (`" "`, `"\t"`), and strings
-containing bracket characters (`"[tricky]"`) are all accepted as valid tags.
-While these do not cause crashes or incorrect filtering behavior, they create
-ambiguous `--list-verbose` output. For example, a tag `"[tricky]"` produces
-output like `S::A [[tricky], normal]`, which is visually confusing with nested
-brackets. The design document does not specify tag content validation rules.
 
 ## KI-006 — `--list`/`--list-verbose` interaction is undocumented
 

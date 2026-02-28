@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <exception>
 #include <format>
 #include <initializer_list>
 #include <iostream>
@@ -30,6 +31,15 @@ class Registry {
                 std::println(std::cerr,
                              "[flul-test] warning: duplicate tag \"{}\" on test {}::{} -- ignoring",
                              tag, suite_name, test_name);
+            }
+        }
+        for (const auto& tag : unique_tags) {
+            if (!IsValidTag(tag)) {
+                std::println(std::cerr,
+                             "[flul-test] error: invalid tag \"{}\" on test {}::{} -- "
+                             "tags must match [a-zA-Z0-9_-]+",
+                             tag, suite_name, test_name);
+                std::terminate();
             }
         }
         entries_.push_back({
@@ -107,6 +117,16 @@ class Registry {
     }
 
    private:
+    [[nodiscard]] static auto IsValidTag(std::string_view tag) -> bool {
+        if (tag.empty()) {
+            return false;
+        }
+        return std::ranges::all_of(tag, [](char c) {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+                   c == '_' || c == '-';
+        });
+    }
+
     std::vector<TestEntry> entries_;
 };
 

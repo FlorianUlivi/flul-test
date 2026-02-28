@@ -39,6 +39,7 @@ add_executable(self_test
     test/tag_adversarial_test.cpp
     test/tag_dedup_test.cpp
     test/tag_metadata_adversarial_test.cpp
+    test/tag_validation_adversarial_test.cpp
 )
 target_link_libraries(self_test PRIVATE flul-test)
 set_project_warnings(self_test)
