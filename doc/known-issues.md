@@ -1,22 +1,11 @@
 # Known Issues
 
-## [REQUIREMENTS] #TAG -- Status marker not flipped to [DONE]
+## KI-001 — `TestMetadata` struct does not exist in implementation
 
+**Feature**: `#TAG`
 **Date discovered**: 2026-02-27
 **Status**: Open
-**Level**: Requirements
-**Reproducer**: `doc/requirements.md` line 59
-
-The `#TAG` feature has been fully implemented and merged to `develop` (commit
-`9dd6043`), but `doc/requirements.md` still marks it as `[TODO]`. Per the
-project workflow, the marker should be flipped to `[DONE]` when the feature is
-merged back into `develop`.
-
-## [DESIGN] #TAG -- TestMetadata struct does not exist in implementation
-
-**Date discovered**: 2026-02-27
-**Status**: Open
-**Level**: Design
+**Phase**: Design
 **Reproducer**: `doc/tag-design.md` section 4.1 vs `include/flul/test/test_entry.hpp`
 
 The design document specifies that `tags` and `HasTag()` should live on a
@@ -31,11 +20,12 @@ field and `HasTag` method live directly on `TestEntry`. `TestResult` duplicates
 `TestMetadata`. This diverges from the documented architecture and will become
 a maintenance burden as more per-test metadata is added (#XFAIL, #SKIP, #TMO).
 
-## [DESIGN] #TAG -- Registry::Add return type diverges from design
+## KI-002 — `Registry::Add` return type diverges from design
 
+**Feature**: `#TAG`
 **Date discovered**: 2026-02-27
 **Status**: Open
-**Level**: Design
+**Phase**: Design
 **Reproducer**: `doc/tag-design.md` section 4.3 vs `include/flul/test/registry.hpp` line 23
 
 The design document specifies `Registry::Add` should return `TestEntry&` to
@@ -43,11 +33,12 @@ support the `Test<Derived>` builder pattern. The implementation returns `void`.
 This will block the `#XFAIL` feature which needs `Add` to return a reference
 for builder chaining (e.g., `.ExpectFail()`).
 
-## [DESIGN] #TAG -- Test<Derived> builder with .Tag() method does not exist
+## KI-003 — `Test<Derived>` builder with `.Tag()` method does not exist
 
+**Feature**: `#TAG`
 **Date discovered**: 2026-02-27
 **Status**: Open
-**Level**: Design
+**Phase**: Design
 **Reproducer**: `doc/tag-design.md` section 4.2
 
 The design document states: "For per-test tags, users use the `Test<Derived>`
@@ -56,11 +47,12 @@ class does not exist in the codebase. While `#XFAIL` is `[TODO]`, the design
 doc for `#TAG` references it as if it were already available. Per-test tagging
 (as opposed to group-level tagging via `AddTests`) is not possible.
 
-## [IMPLEMENTATION] #TAG -- No validation of tag content
+## KI-004 — No validation of tag content
 
+**Feature**: `#TAG`
 **Date discovered**: 2026-02-27
 **Status**: Open
-**Level**: Implementation
+**Phase**: Implementation
 **Reproducer**: `test/tag_adversarial_test.cpp` — `TestEmptyStringTag`,
 `TestWhitespaceOnlyTag`, `TestTagContainingBrackets`
 
@@ -71,11 +63,12 @@ ambiguous `--list-verbose` output. For example, a tag `"[tricky]"` produces
 output like `S::A [[tricky], normal]`, which is visually confusing with nested
 brackets. The design document does not specify tag content validation rules.
 
-## [IMPLEMENTATION] #TAG -- Duplicate tags are silently accepted
+## KI-005 — Duplicate tags silently accepted
 
+**Feature**: `#TAG`
 **Date discovered**: 2026-02-27
 **Status**: Open
-**Level**: Implementation
+**Phase**: Implementation
 **Reproducer**: `test/tag_adversarial_test.cpp` — `TestDuplicateTagsOnSameTest`
 
 Registering the same tag multiple times on a single test (e.g.,
@@ -84,11 +77,12 @@ filtering (HasTag still finds it), it wastes memory and produces redundant
 `--list-verbose` output like `S::A [fast, fast, fast]`. The design document
 does not address deduplication.
 
-## [IMPLEMENTATION] #TAG -- --list and --list-verbose interaction is undocumented
+## KI-006 — `--list`/`--list-verbose` interaction is undocumented
 
+**Feature**: `#TAG`
 **Date discovered**: 2026-02-27
 **Status**: Open
-**Level**: Implementation
+**Phase**: Implementation
 **Reproducer**: `test/tag_adversarial_test.cpp` —
 `TestListAndListVerboseBothSpecified`,
 `TestListVerboseThenListReversedCliOrder`

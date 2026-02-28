@@ -31,7 +31,7 @@ Use plan mode when:
 
 ### Feature Development Workflow
 
-All feature work follows a 4-phase pipeline. **User clearance is required between every phase.**
+All feature work follows a 5-phase pipeline. **User clearance is required between every phase.**
 
 | Phase | Agent | Scope |
 |-------|-------|-------|
@@ -39,12 +39,14 @@ All feature work follows a 4-phase pipeline. **User clearance is required betwee
 | 2 — Architecture | `cpp-architect-overview` | Update `doc/architecture-overview.puml`; flag features needing design and any refactoring |
 | 3 — Detailed Design | `cpp-architect-design` | One feature per invocation; produces `doc/<feature>-design.md` |
 | 4 — Implementation | `cpp-implementer` | One feature per invocation; writes tests, implements code, runs checks |
+| 5 — Adversarial Testing | `feature-adversarial-tester` | Optional; required when `src/` or `include/` changed in Phase 4 |
 
 **Orchestration rules:**
 1. Always start with Phase 1, even if only confirming existing requirements are complete
 2. After each phase completes, present output to the user and **explicitly ask for clearance** before proceeding
 3. Phases 3 and 4 are per-feature — repeat with user clearance between each feature
 4. If Phase 2 or 3 flags refactoring: pause, surface it to the user as a named step, implement it as a separate `feature/refactor-<desc>` branch with its own user clearance, then resume the original phase
+5. Phase 5 is optional but required before closing if Phase 4 touched `src/` or `include/`
 
 ### Conversation Style
 
@@ -200,4 +202,60 @@ When creating or updating architecture diagrams:
 - Focus on public interfaces and key relationships
 - Use packages to organize by namespace
 - Commit `.puml` files to version control
+
+## Known Issues
+
+Open issues live in `doc/known-issues.md`. Resolved issues are in `doc/resolved-issues.md`.
+
+### Format
+
+```markdown
+## KI-NNN — <short title>
+
+**Feature**: `#SLUG`
+**Date discovered**: YYYY-MM-DD
+**Status**: Open | In Progress | Wontfix | Deferred
+**Phase**: Requirements | Architecture | Design | Implementation
+**Reproducer**: `<test name or file>`
+
+<concise description: what was expected, what actually happened>
+```
+
+### ID Scheme
+
+`KI-NNN` — sequential, never reused. Use IDs when referencing issues in chat,
+commits, and PRs (e.g. `Fixes KI-004`).
+
+### Phase Definitions
+
+- **Requirements**: requirement is missing, contradictory, or underspecified
+- **Architecture**: violates an architectural constraint or is fundamentally misfit
+- **Design**: `<slug>-design.md` is incorrect, incomplete, or misleads the implementer
+- **Implementation**: code does not correctly implement the design or requirements
+
+### When to Document
+
+| Situation | Action |
+|-----------|--------|
+| Clearly trivial (typo, status marker flip, one-liner) | Fix immediately, no entry |
+| Clearly non-trivial (blocked, systemic, needs decision, regression risk) | Add entry to `doc/known-issues.md` |
+| Uncertain | Ask the user |
+
+### Status Lifecycle
+
+| Status | Meaning |
+|--------|---------|
+| `Open` | Confirmed, no fix in progress |
+| `In Progress` | Fix actively being worked; reference branch/PR |
+| `Wontfix` | Acknowledged, intentionally not fixed; state reason |
+| `Deferred` | Will be addressed with a future feature; reference `#SLUG` |
+
+### Addressing Issues via Prompt
+
+`KI-NNN` in a prompt means: address that known issue.
+
+1. Read the issue entry to determine phase and feature slug
+2. Route to the Phase N agent per the Feature Development Workflow table. Chain phases if the fix spans multiple. Phase 5 (`feature-adversarial-tester`) is required before closing if any code in `src/` or `include/` was changed.
+3. On close: move entry from `doc/known-issues.md` to `doc/resolved-issues.md`;
+   add `**Resolved**: YYYY-MM-DD` and `**Fix**: <commit or PR>`
 
