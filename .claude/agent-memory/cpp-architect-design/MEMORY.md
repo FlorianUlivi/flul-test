@@ -27,10 +27,15 @@
 - `doc/suite-design.md` — Suite, TestEntry, Registry (current impl matches)
 - `doc/run-design.md` — Runner, TestResult, Run(), CTest integration
 - `doc/assrt-design.md` — Assertions
-- `doc/tag-design.md` — Tags (#TAG) — introduces TestMetadata, modifies TestEntry/TestResult/Registry/Run
-- `doc/xfail-design.md` — Expected Failure (#XFAIL) — introduces TestMetadata, Outcome, Test<Derived> builder
+- `doc/tag-design.md` — Tags (#TAG) — v1.2: corrective refactoring introducing TestMetadata (KI-001/KI-002)
+- `doc/xfail-design.md` — Expected Failure (#XFAIL) — introduces Outcome, Test<Derived> builder
 - `doc/rand-design.md` — Randomized order (#RAND) — Registry::Shuffle, --randomize/--seed CLI, two-level shuffle
 - `doc/tmo-design.md` — Timeout (#TMO) — post-test clock check, Outcome::Timeout
+
+## KI-001/KI-002 Resolution
+- tag-design.md v1.2 aligns implementation with architecture: TestMetadata extracted as new file,
+  TestEntry contains TestMetadata, TestResult references it, Registry::Add returns TestEntry&
+- Tags stored as std::set<string_view> (preserving current impl choice, not vector as in earlier designs)
 
 ## #TMO Design Notes (v2 — Option A+)
 - Post-test clock check: after try/catch, compare elapsed vs metadata.timeout; override to Timeout if exceeded

@@ -14,18 +14,17 @@ Use plan mode when:
 
 ### Code Quality Automation
 
-**REQUIRED**: Run these tools whenever code is changed or added:
-- `clang-format -i <file>` - Format code before committing
-- `./scripts/clang-tidy.sh <file>` - Static analysis and naming validation
+**REQUIRED**: Run after any code change:
+- `just check` — format + lint + build + test; silent on success, full diagnostics on failure
 
 ### Coverage
 
 **REQUIRED**: Check coverage when adding or changing code:
 
-1. **Before** changes: `./scripts/coverage.sh --agent` — record TOTAL line% and branch%
+1. **Before** changes: `just coverage-baseline` — snapshot current totals
 2. Make changes
-3. **After** changes: `./scripts/coverage.sh --agent` — compare TOTAL line% and branch%
-4. If coverage decreased >1%: examine "Uncovered Lines" output, add tests, re-run
+3. **After** changes: `just check && just coverage-check`
+4. If `coverage-check` reports regression >1%: examine output, add tests, re-run
 5. If after one iteration decrease is within 1%: acceptable, proceed
 6. If still >1% decrease: ask user for confirmation before proceeding
 
@@ -107,9 +106,11 @@ flul-test
 ## Build
 
 ```bash
-cmake --preset debug
-cmake --build --preset debug
+just build          # configure (if needed) + compile debug; silent on success
+just build release  # release variant
 ```
+
+The `justfile` at the repo root is the primary task runner. Run `just --list` to see all available recipes. Requires `just` (`brew install just`).
 
 ## Code Style
 

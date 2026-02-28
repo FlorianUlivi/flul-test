@@ -85,3 +85,4 @@ vcpkg_installed/
 
 build/
 .cache/
+.coverage-baseline
