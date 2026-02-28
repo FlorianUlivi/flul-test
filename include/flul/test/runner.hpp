@@ -50,15 +50,13 @@ class Runner {
         try {
             entry.callable();
             auto duration = steady_clock::now() - start;
-            return {.suite_name = entry.suite_name,
-                    .test_name = entry.test_name,
+            return {.metadata = std::cref(entry.metadata),
                     .passed = true,
                     .duration = duration,
                     .error = std::nullopt};
         } catch (const AssertionError& e) {
             auto duration = steady_clock::now() - start;
-            return {.suite_name = entry.suite_name,
-                    .test_name = entry.test_name,
+            return {.metadata = std::cref(entry.metadata),
                     .passed = false,
                     .duration = duration,
                     .error = e};
@@ -66,16 +64,14 @@ class Runner {
             auto duration = steady_clock::now() - start;
             auto loc = std::source_location::current();
             return {
-                .suite_name = entry.suite_name,
-                .test_name = entry.test_name,
+                .metadata = std::cref(entry.metadata),
                 .passed = false,
                 .duration = duration,
                 .error = AssertionError("threw: " + std::string(e.what()), "no exception", loc)};
         } catch (...) {
             auto duration = steady_clock::now() - start;
             auto loc = std::source_location::current();
-            return {.suite_name = entry.suite_name,
-                    .test_name = entry.test_name,
+            return {.metadata = std::cref(entry.metadata),
                     .passed = false,
                     .duration = duration,
                     .error = AssertionError("unknown exception", "no exception", loc)};
@@ -84,8 +80,8 @@ class Runner {
 
     static void PrintResult(const TestResult& result) {
         const auto* tag = result.passed ? "PASS" : "FAIL";
-        std::println("[ {} ] {}::{} ({})", tag, result.suite_name, result.test_name,
-                     FormatDuration(result.duration));
+        std::println("[ {} ] {}::{} ({})", tag, result.metadata.get().suite_name,
+                     result.metadata.get().test_name, FormatDuration(result.duration));
 
         if (!result.passed && result.error) {
             std::println("  {}", result.error->what());

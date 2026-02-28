@@ -42,8 +42,8 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
     void TestEmptyStringTag() {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {""});
-        Expect(reg.Tests()[0].HasTag("")).ToBeTrue();
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.HasTag("")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
     }
 
     void TestFilterByEmptyStringTag() {
@@ -53,7 +53,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         std::vector<std::string_view> include = {""};
         reg.FilterByTag(include);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("A"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("A"));
     }
 
     // --- Boundary: duplicate tags on same test ---
@@ -62,8 +62,8 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"fast", "fast", "fast"});
         // Duplicates are deduplicated at registration time; only one "fast" stored
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].HasTag("fast")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.HasTag("fast")).ToBeTrue();
     }
 
     void TestDuplicateTagEmitsStderrWarning() {
@@ -79,7 +79,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         Expect(output.find("fast") != std::string::npos).ToBeTrue();
         Expect(output.find("S::A") != std::string::npos).ToBeTrue();
         // Only two unique tags stored
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{2});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{2});
     }
 
     void TestNoDuplicateTagNoWarning() {
@@ -90,7 +90,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         std::cerr.rdbuf(old_stderr);
         // No duplicates: no warning emitted
         Expect(captured.str().empty()).ToBeTrue();
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{2});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{2});
     }
 
     void TestMultipleDuplicatesEmitOneWarningEach() {
@@ -111,7 +111,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         }
         Expect(warn_count).ToEqual(std::size_t{3});
         // Only 2 unique tags stored
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{2});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{2});
     }
 
     void TestFilterByTagWithDuplicatesInInclude() {
@@ -121,7 +121,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         std::vector<std::string_view> include = {"fast", "fast", "fast"};
         reg.FilterByTag(include);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("A"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("A"));
     }
 
     // --- Boundary: case sensitivity ---
@@ -129,9 +129,9 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
     void TestTagIsCaseSensitive() {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"Fast"});
-        Expect(reg.Tests()[0].HasTag("Fast")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("fast")).ToBeFalse();
-        Expect(reg.Tests()[0].HasTag("FAST")).ToBeFalse();
+        Expect(reg.Tests()[0].metadata.HasTag("Fast")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("fast")).ToBeFalse();
+        Expect(reg.Tests()[0].metadata.HasTag("FAST")).ToBeFalse();
     }
 
     // --- Boundary: single test, single tag ---
@@ -214,7 +214,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         // Now: Beta(fast) only
 
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Beta"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Beta"));
     }
 
     // --- Invariant: --list must remain CTest-safe (bare names only) ---
@@ -249,7 +249,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         reg.FilterByTag(include2);
         // Only A has "math"
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("A"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("A"));
     }
 
     // --- Ordering: ExcludeByTag before FilterByTag ---
@@ -270,7 +270,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         reg.FilterByTag(include);
         // B has "fast", so it remains
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("B"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("B"));
     }
 
     // --- Large number of tags ---
@@ -282,10 +282,10 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
             "S", "A", &TagAdvDummy::Alpha,
             {"t0",  "t1",  "t2",  "t3",  "t4",  "t5",  "t6",  "t7",  "t8",  "t9",
              "t10", "t11", "t12", "t13", "t14", "t15", "t16", "t17", "t18", "t19"});
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{20});
-        Expect(reg.Tests()[0].HasTag("t0")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("t19")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("t20")).ToBeFalse();
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{20});
+        Expect(reg.Tests()[0].metadata.HasTag("t0")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("t19")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("t20")).ToBeFalse();
     }
 
     // --- Edge: tag that looks like a CLI flag ---
@@ -293,7 +293,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
     void TestTagValueLooksLikeFlag() {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"--fast"});
-        Expect(reg.Tests()[0].HasTag("--fast")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("--fast")).ToBeTrue();
         // Can we filter by it via CLI?
         auto argv = MakeArgv({"prog", "--tag", "--fast", "--list"});
         // This is ambiguous: "--fast" is parsed as the value of --tag
@@ -358,9 +358,9 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
     void TestTagWithSpecialCharacters() {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"tag with spaces", "tag/slash"});
-        Expect(reg.Tests()[0].HasTag("tag with spaces")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("tag/slash")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("tag")).ToBeFalse();
+        Expect(reg.Tests()[0].metadata.HasTag("tag with spaces")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("tag/slash")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("tag")).ToBeFalse();
     }
 
     // --- Edge: tag containing bracket characters (could confuse --list-verbose output) ---
@@ -368,7 +368,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
     void TestTagContainingBrackets() {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"[tricky]", "normal"});
-        Expect(reg.Tests()[0].HasTag("[tricky]")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("[tricky]")).ToBeTrue();
         reg.ListVerbose();  // Output: S::A [[tricky], normal] -- nested brackets
     }
 
@@ -383,7 +383,7 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
         auto rc = flul::test::Run(static_cast<int>(argv.size()), argv.data(), reg);
         Expect(rc).ToEqual(0);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("C"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("C"));
     }
 
     // --- Edge: tag with only whitespace ---
@@ -391,9 +391,9 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
     void TestWhitespaceOnlyTag() {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {" ", "\t"});
-        Expect(reg.Tests()[0].HasTag(" ")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("\t")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("")).ToBeFalse();
+        Expect(reg.Tests()[0].metadata.HasTag(" ")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("\t")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("")).ToBeFalse();
     }
 
     static void Register(Registry& r) {

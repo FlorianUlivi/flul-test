@@ -34,6 +34,9 @@ void Register(flul::test::Registry& r);
 namespace tag_dedup_test {
 void Register(flul::test::Registry& r);
 }
+namespace tag_metadata_adversarial_test {
+void Register(flul::test::Registry& r);
+}
 
 auto main(int argc, char* argv[]) -> int {
     flul::test::Registry registry;
@@ -49,6 +52,7 @@ auto main(int argc, char* argv[]) -> int {
     tag_test::Register(registry);
     tag_adversarial_test::Register(registry);
     tag_dedup_test::Register(registry);
+    tag_metadata_adversarial_test::Register(registry);
 
     return flul::test::Run(argc, argv, registry);
 }

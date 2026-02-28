@@ -97,7 +97,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         reg.Add<TagDedupDummy>("S", "A", &TagDedupDummy::Alpha, {"zeta", "alpha", "mid"});
         // std::set sorts lexicographically: alpha, mid, zeta
         // Verify via iterator order (set guarantees sorted iteration)
-        auto it = reg.Tests()[0].tags.begin();
+        auto it = reg.Tests()[0].metadata.tags.begin();
         Expect(*it).ToEqual(std::string_view("alpha"));
         ++it;
         Expect(*it).ToEqual(std::string_view("mid"));
@@ -118,11 +118,11 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         // Only one warning (from test A)
         Expect(CountOccurrences(output, "[flul-test]")).ToEqual(std::size_t{1});
         // Both tests have "fast"
-        Expect(reg.Tests()[0].HasTag("fast")).ToBeTrue();
-        Expect(reg.Tests()[1].HasTag("fast")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("fast")).ToBeTrue();
+        Expect(reg.Tests()[1].metadata.HasTag("fast")).ToBeTrue();
         // A has 1 unique tag, B has 1
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[1].tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[1].metadata.tags.size()).ToEqual(std::size_t{1});
     }
 
     // --- AddTests with group-level duplicate tags ---
@@ -140,8 +140,8 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         // Each test should emit one warning (dup appears twice in group tags)
         Expect(CountOccurrences(output, "[flul-test]")).ToEqual(std::size_t{2});
         // Both tests have exactly 1 unique tag
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[1].tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[1].metadata.tags.size()).ToEqual(std::size_t{1});
         // Warning should reference both tests
         Expect(output.find("S::Alpha") != std::string::npos).ToBeTrue();
         Expect(output.find("S::Beta") != std::string::npos).ToBeTrue();
@@ -157,7 +157,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         });
         // 4 duplicates (first is kept, 4 are duplicates)
         Expect(CountOccurrences(output, "[flul-test]")).ToEqual(std::size_t{4});
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
     }
 
     // --- Edge: single tag, no duplicate ---
@@ -167,7 +167,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         auto output = CaptureStderr(
             [&] { reg.Add<TagDedupDummy>("S", "A", &TagDedupDummy::Alpha, {"only"}); });
         Expect(output.empty()).ToBeTrue();
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
     }
 
     // --- Edge: empty tag list ---
@@ -177,7 +177,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         auto output =
             CaptureStderr([&] { reg.Add<TagDedupDummy>("S", "A", &TagDedupDummy::Alpha, {}); });
         Expect(output.empty()).ToBeTrue();
-        Expect(reg.Tests()[0].tags.empty()).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.tags.empty()).ToBeTrue();
     }
 
     // --- Edge: dedup of empty string tags ---
@@ -187,8 +187,8 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         auto output = CaptureStderr(
             [&] { reg.Add<TagDedupDummy>("S", "A", &TagDedupDummy::Alpha, {"", ""}); });
         Expect(CountOccurrences(output, "[flul-test]")).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].HasTag("")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.HasTag("")).ToBeTrue();
     }
 
     // --- FilterByTag correctness after dedup ---
@@ -214,7 +214,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         std::vector<std::string_view> exclude = {"fast"};
         reg.ExcludeByTag(exclude);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("B"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("B"));
     }
 
     // --- --list invariant: bare names even after dedup ---
@@ -224,7 +224,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         CaptureStderr(
             [&] { reg.Add<TagDedupDummy>("S", "A", &TagDedupDummy::Alpha, {"fast", "fast"}); });
         // Verify dedup happened correctly
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
         // Verify List() does not crash after dedup; output format verified via CLI
         reg.List();
         // Verify --list via Run() with deduped tags
@@ -242,7 +242,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         });
         // All three are distinct; no warnings
         Expect(output.empty()).ToBeTrue();
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{3});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{3});
     }
 
     // --- RunAll still works after dedup ---
@@ -270,7 +270,7 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         Expect(rc).ToEqual(0);
         // After filters: only B remains (A excluded by unit, C excluded by tag filter)
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("B"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("B"));
     }
 
     // --- Verify set iteration in ListVerbose does not crash with deduped tags ---
@@ -282,9 +282,9 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
                                    {"a", "b", "c", "a", "b", "c", "a", "b", "c"});
         });
         // 3 unique tags, 6 duplicates
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{3});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{3});
         // Verify sorted order via iterator
-        auto it = reg.Tests()[0].tags.begin();
+        auto it = reg.Tests()[0].metadata.tags.begin();
         Expect(*it).ToEqual(std::string_view("a"));
         ++it;
         Expect(*it).ToEqual(std::string_view("b"));

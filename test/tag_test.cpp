@@ -38,21 +38,21 @@ class TagSuite : public Suite<TagSuite> {
     void TestHasTagReturnsTrueForPresentTag() {
         Registry reg;
         reg.Add<TagDummySuite>("S", "A", &TagDummySuite::Alpha, {"fast", "math"});
-        Expect(reg.Tests()[0].HasTag("fast")).ToBeTrue();
-        Expect(reg.Tests()[0].HasTag("math")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("fast")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("math")).ToBeTrue();
     }
 
     void TestHasTagReturnsFalseForAbsentTag() {
         Registry reg;
         reg.Add<TagDummySuite>("S", "A", &TagDummySuite::Alpha, {"fast"});
-        Expect(reg.Tests()[0].HasTag("slow")).ToBeFalse();
+        Expect(reg.Tests()[0].metadata.HasTag("slow")).ToBeFalse();
     }
 
     void TestHasTagReturnsFalseWhenNoTags() {
         Registry reg;
         reg.Add<TagDummySuite>("S", "A", &TagDummySuite::Alpha);
-        Expect(reg.Tests()[0].HasTag("fast")).ToBeFalse();
-        Expect(reg.Tests()[0].tags.empty()).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("fast")).ToBeFalse();
+        Expect(reg.Tests()[0].metadata.tags.empty()).ToBeTrue();
     }
 
     // --- Registry::Add with tags ---
@@ -60,13 +60,13 @@ class TagSuite : public Suite<TagSuite> {
     void TestAddStoresTags() {
         Registry reg;
         reg.Add<TagDummySuite>("S", "A", &TagDummySuite::Alpha, {"x", "y"});
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{2});
+        Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{2});
     }
 
     void TestAddDefaultTagsEmpty() {
         Registry reg;
         reg.Add<TagDummySuite>("S", "A", &TagDummySuite::Alpha);
-        Expect(reg.Tests()[0].tags.empty()).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.tags.empty()).ToBeTrue();
     }
 
     // --- AddTests with tags ---
@@ -80,8 +80,8 @@ class TagSuite : public Suite<TagSuite> {
                                 },
                                 {"unit", "fast"});
         Expect(reg.Tests().size()).ToEqual(std::size_t{2});
-        Expect(reg.Tests()[0].HasTag("unit")).ToBeTrue();
-        Expect(reg.Tests()[1].HasTag("unit")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("unit")).ToBeTrue();
+        Expect(reg.Tests()[1].metadata.HasTag("unit")).ToBeTrue();
     }
 
     void TestAddTestsDefaultTagsEmpty() {
@@ -90,7 +90,7 @@ class TagSuite : public Suite<TagSuite> {
                                 {
                                     {"Alpha", &TagDummySuite::Alpha},
                                 });
-        Expect(reg.Tests()[0].tags.empty()).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.tags.empty()).ToBeTrue();
     }
 
     // --- Registry::FilterByTag ---
@@ -103,8 +103,8 @@ class TagSuite : public Suite<TagSuite> {
         std::vector<std::string_view> include = {"fast"};
         reg.FilterByTag(include);
         Expect(reg.Tests().size()).ToEqual(std::size_t{2});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Alpha"));
-        Expect(reg.Tests()[1].test_name).ToEqual(std::string_view("Gamma"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Alpha"));
+        Expect(reg.Tests()[1].metadata.test_name).ToEqual(std::string_view("Gamma"));
     }
 
     void TestFilterByTagOrSemantics() {
@@ -136,8 +136,8 @@ class TagSuite : public Suite<TagSuite> {
         std::vector<std::string_view> exclude = {"fast"};
         reg.ExcludeByTag(exclude);
         Expect(reg.Tests().size()).ToEqual(std::size_t{2});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Beta"));
-        Expect(reg.Tests()[1].test_name).ToEqual(std::string_view("Gamma"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Beta"));
+        Expect(reg.Tests()[1].metadata.test_name).ToEqual(std::string_view("Gamma"));
     }
 
     void TestExcludeByTagEmptyIsNoOp() {
@@ -158,7 +158,7 @@ class TagSuite : public Suite<TagSuite> {
         reg.FilterByTag(include);
         reg.ExcludeByTag(exclude);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Beta"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Beta"));
     }
 
     // --- Registry::ListVerbose ---
@@ -222,7 +222,7 @@ class TagSuite : public Suite<TagSuite> {
         auto argv = MakeArgv({"prog", "--tag", "fast", "--exclude-tag", "slow"});
         Expect(flul::test::Run(static_cast<int>(argv.size()), argv.data(), reg)).ToEqual(0);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Beta"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Beta"));
     }
 
     void TestRunFilterAndTagCompose() {
@@ -233,7 +233,7 @@ class TagSuite : public Suite<TagSuite> {
         auto argv = MakeArgv({"prog", "--filter", "Alpha", "--tag", "fast"});
         Expect(flul::test::Run(static_cast<int>(argv.size()), argv.data(), reg)).ToEqual(0);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Alpha"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Alpha"));
     }
 
     void TestRunMultipleTagFlags() {

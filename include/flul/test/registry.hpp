@@ -22,8 +22,8 @@ class Registry {
    public:
     template <typename S>
         requires std::derived_from<S, Suite<S>> && std::default_initializable<S>
-    void Add(std::string_view suite_name, std::string_view test_name, void (S::*method)(),
-             std::initializer_list<std::string_view> tags = {}) {
+    auto Add(std::string_view suite_name, std::string_view test_name, void (S::*method)(),
+             std::initializer_list<std::string_view> tags = {}) -> TestEntry& {
         std::set<std::string_view> unique_tags;
         for (std::string_view tag : tags) {
             if (!unique_tags.insert(tag).second) {
@@ -33,8 +33,8 @@ class Registry {
             }
         }
         entries_.push_back({
-            suite_name,
-            test_name,
+            TestMetadata{
+                .suite_name = suite_name, .test_name = test_name, .tags = std::move(unique_tags)},
             [method]() {
                 S instance;
                 instance.SetUp();
@@ -46,8 +46,8 @@ class Registry {
                 }
                 instance.TearDown();
             },
-            std::move(unique_tags),
         });
+        return entries_.back();
     }
 
     [[nodiscard]] auto Tests() const -> std::span<const TestEntry> {
@@ -56,7 +56,8 @@ class Registry {
 
     void Filter(std::string_view pattern) {
         std::erase_if(entries_, [pattern](const TestEntry& e) {
-            return !std::format("{}::{}", e.suite_name, e.test_name).contains(pattern);
+            return !std::format("{}::{}", e.metadata.suite_name, e.metadata.test_name)
+                        .contains(pattern);
         });
     }
 
@@ -65,8 +66,8 @@ class Registry {
             return;
         }
         std::erase_if(entries_, [include_tags](const TestEntry& e) {
-            return !std::ranges::any_of(include_tags,
-                                        [&e](std::string_view tag) { return e.HasTag(tag); });
+            return !std::ranges::any_of(
+                include_tags, [&e](std::string_view tag) { return e.metadata.HasTag(tag); });
         });
     }
 
@@ -75,32 +76,32 @@ class Registry {
             return;
         }
         std::erase_if(entries_, [exclude_tags](const TestEntry& e) {
-            return std::ranges::any_of(exclude_tags,
-                                       [&e](std::string_view tag) { return e.HasTag(tag); });
+            return std::ranges::any_of(
+                exclude_tags, [&e](std::string_view tag) { return e.metadata.HasTag(tag); });
         });
     }
 
     void List() const {
         for (const auto& e : entries_) {
-            std::println("{}::{}", e.suite_name, e.test_name);
+            std::println("{}::{}", e.metadata.suite_name, e.metadata.test_name);
         }
     }
 
     void ListVerbose() const {
         for (const auto& e : entries_) {
-            if (e.tags.empty()) {
-                std::println("{}::{}", e.suite_name, e.test_name);
+            if (e.metadata.tags.empty()) {
+                std::println("{}::{}", e.metadata.suite_name, e.metadata.test_name);
             } else {
                 std::string tag_str;
                 bool first = true;
-                for (std::string_view tag : e.tags) {
+                for (const auto& tag : e.metadata.tags) {
                     if (!first) {
                         tag_str += ", ";
                     }
                     tag_str += tag;
                     first = false;
                 }
-                std::println("{}::{} [{}]", e.suite_name, e.test_name, tag_str);
+                std::println("{}::{} [{}]", e.metadata.suite_name, e.metadata.test_name, tag_str);
             }
         }
     }

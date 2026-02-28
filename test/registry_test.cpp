@@ -52,8 +52,8 @@ class RegistrySuite : public Suite<RegistrySuite> {
         Registry reg;
         reg.Add<DummySuite>("Dummy", "Pass", &DummySuite::Pass);
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].suite_name).ToEqual(std::string_view("Dummy"));
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Pass"));
+        Expect(reg.Tests()[0].metadata.suite_name).ToEqual(std::string_view("Dummy"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Pass"));
     }
 
     void TestFilter() {
@@ -62,7 +62,7 @@ class RegistrySuite : public Suite<RegistrySuite> {
         reg.Add<DummySuite>("Dummy", "Throw", &DummySuite::Throw);
         reg.Filter("Pass");
         Expect(reg.Tests().size()).ToEqual(std::size_t{1});
-        Expect(reg.Tests()[0].test_name).ToEqual(std::string_view("Pass"));
+        Expect(reg.Tests()[0].metadata.test_name).ToEqual(std::string_view("Pass"));
     }
 
     void TestList() {

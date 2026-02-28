@@ -1,38 +1,5 @@
 # Known Issues
 
-## KI-001 — `TestMetadata` struct does not exist in implementation
-
-**Feature**: `#TAG`
-**Date discovered**: 2026-02-27
-**Status**: Open
-**Phase**: Design
-**Reproducer**: `doc/tag-design.md` section 4.1 vs `include/flul/test/test_entry.hpp`
-
-The design document specifies that `tags` and `HasTag()` should live on a
-`TestMetadata` struct (section 4.1), with `TestEntry` containing `TestMetadata`
-and `TestResult` referencing it via `std::reference_wrapper<const TestMetadata>`.
-The architecture diagram (`doc/architecture-overview.puml`) also shows
-`TestMetadata` as a separate struct.
-
-In the actual implementation, there is no `TestMetadata` struct. The `tags`
-field and `HasTag` method live directly on `TestEntry`. `TestResult` duplicates
-`suite_name` and `test_name` as separate fields instead of referencing
-`TestMetadata`. This diverges from the documented architecture and will become
-a maintenance burden as more per-test metadata is added (#XFAIL, #SKIP, #TMO).
-
-## KI-002 — `Registry::Add` return type diverges from design
-
-**Feature**: `#TAG`
-**Date discovered**: 2026-02-27
-**Status**: Open
-**Phase**: Design
-**Reproducer**: `doc/tag-design.md` section 4.3 vs `include/flul/test/registry.hpp` line 23
-
-The design document specifies `Registry::Add` should return `TestEntry&` to
-support the `Test<Derived>` builder pattern. The implementation returns `void`.
-This will block the `#XFAIL` feature which needs `Add` to return a reference
-for builder chaining (e.g., `.ExpectFail()`).
-
 ## KI-003 — `Test<Derived>` builder with `.Tag()` method does not exist
 
 **Feature**: `#TAG`
@@ -79,3 +46,22 @@ because the code checks `do_list` before `do_list_verbose`. While this behavior
 is reasonable, it is undocumented in the design or requirements. The behavior
 should either be documented, or the runner should reject mutually exclusive
 flags with an error.
+
+## KI-007 — Architecture diagram stale after `TestMetadata` refactoring
+
+**Feature**: `#TAG`
+**Date discovered**: 2026-02-28
+**Status**: Open
+**Phase**: Architecture
+**Reproducer**: `doc/architecture-overview.puml` lines 23, 84
+
+Two entries in the architecture diagram diverge from the implementation after
+the KI-001/KI-002 refactoring:
+
+1. `TestMetadata::tags` is shown as `vector<string_view>` (line 84) but the
+   implementation uses `std::set<std::string_view>`. The design doc
+   (`doc/tag-design.md` section 4.1) correctly specifies `std::set`.
+2. `Registry::Add` is shown returning `void` (line 23) but the implementation
+   now returns `TestEntry&`, matching the design doc (section 4.5).
+
+The diagram should be updated to reflect the current implementation.

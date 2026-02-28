@@ -2,16 +2,16 @@
 #define FLUL_TEST_TEST_RESULT_HPP_
 
 #include <chrono>
+#include <functional>
 #include <optional>
-#include <string_view>
 
 #include "flul/test/assertion_error.hpp"
+#include "flul/test/test_metadata.hpp"
 
 namespace flul::test {
 
 struct TestResult {
-    std::string_view suite_name;
-    std::string_view test_name;
+    std::reference_wrapper<const TestMetadata> metadata;
     bool passed;
     std::chrono::nanoseconds duration;
     std::optional<AssertionError> error;
