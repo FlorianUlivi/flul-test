@@ -5,7 +5,9 @@
 #include <concepts>
 #include <format>
 #include <initializer_list>
+#include <iostream>
 #include <print>
+#include <set>
 #include <span>
 #include <string>
 #include <utility>
@@ -22,6 +24,14 @@ class Registry {
         requires std::derived_from<S, Suite<S>> && std::default_initializable<S>
     void Add(std::string_view suite_name, std::string_view test_name, void (S::*method)(),
              std::initializer_list<std::string_view> tags = {}) {
+        std::set<std::string_view> unique_tags;
+        for (std::string_view tag : tags) {
+            if (!unique_tags.insert(tag).second) {
+                std::println(std::cerr,
+                             "[flul-test] warning: duplicate tag \"{}\" on test {}::{} -- ignoring",
+                             tag, suite_name, test_name);
+            }
+        }
         entries_.push_back({
             suite_name,
             test_name,
@@ -36,7 +46,7 @@ class Registry {
                 }
                 instance.TearDown();
             },
-            std::vector<std::string_view>(tags),
+            std::move(unique_tags),
         });
     }
 
@@ -82,11 +92,13 @@ class Registry {
                 std::println("{}::{}", e.suite_name, e.test_name);
             } else {
                 std::string tag_str;
-                for (std::size_t i = 0; i < e.tags.size(); ++i) {
-                    if (i > 0) {
+                bool first = true;
+                for (std::string_view tag : e.tags) {
+                    if (!first) {
                         tag_str += ", ";
                     }
-                    tag_str += e.tags[i];
+                    tag_str += tag;
+                    first = false;
                 }
                 std::println("{}::{} [{}]", e.suite_name, e.test_name, tag_str);
             }

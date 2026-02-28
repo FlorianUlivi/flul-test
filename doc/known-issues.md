@@ -63,20 +63,6 @@ ambiguous `--list-verbose` output. For example, a tag `"[tricky]"` produces
 output like `S::A [[tricky], normal]`, which is visually confusing with nested
 brackets. The design document does not specify tag content validation rules.
 
-## KI-005 — Duplicate tags silently accepted
-
-**Feature**: `#TAG`
-**Date discovered**: 2026-02-27
-**Status**: Open
-**Phase**: Implementation
-**Reproducer**: `test/tag_adversarial_test.cpp` — `TestDuplicateTagsOnSameTest`
-
-Registering the same tag multiple times on a single test (e.g.,
-`{"fast", "fast", "fast"}`) stores three entries. While this does not break
-filtering (HasTag still finds it), it wastes memory and produces redundant
-`--list-verbose` output like `S::A [fast, fast, fast]`. The design document
-does not address deduplication.
-
 ## KI-006 — `--list`/`--list-verbose` interaction is undocumented
 
 **Feature**: `#TAG`

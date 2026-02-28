@@ -1,3 +1,6 @@
+#include <iostream>
+#include <sstream>
+
 #include "flul/test/expect.hpp"
 #include "flul/test/registry.hpp"
 #include "flul/test/run.hpp"
@@ -58,8 +61,57 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
     void TestDuplicateTagsOnSameTest() {
         Registry reg;
         reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"fast", "fast", "fast"});
-        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{3});
+        // Duplicates are deduplicated at registration time; only one "fast" stored
+        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{1});
         Expect(reg.Tests()[0].HasTag("fast")).ToBeTrue();
+    }
+
+    void TestDuplicateTagEmitsStderrWarning() {
+        Registry reg;
+        // Redirect stderr to capture warnings
+        std::ostringstream captured;  // NOLINT(misc-const-correctness)
+        std::streambuf* old_stderr = std::cerr.rdbuf(captured.rdbuf());
+        reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"fast", "slow", "fast"});
+        std::cerr.rdbuf(old_stderr);
+        // One duplicate ("fast" appears twice: second occurrence triggers warning)
+        auto output = captured.str();
+        Expect(output.empty()).ToBeFalse();
+        Expect(output.find("fast") != std::string::npos).ToBeTrue();
+        Expect(output.find("S::A") != std::string::npos).ToBeTrue();
+        // Only two unique tags stored
+        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{2});
+    }
+
+    void TestNoDuplicateTagNoWarning() {
+        Registry reg;
+        std::ostringstream captured;  // NOLINT(misc-const-correctness)
+        std::streambuf* old_stderr = std::cerr.rdbuf(captured.rdbuf());
+        reg.Add<TagAdvDummy>("S", "A", &TagAdvDummy::Alpha, {"fast", "slow"});
+        std::cerr.rdbuf(old_stderr);
+        // No duplicates: no warning emitted
+        Expect(captured.str().empty()).ToBeTrue();
+        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{2});
+    }
+
+    void TestMultipleDuplicatesEmitOneWarningEach() {
+        Registry reg;
+        std::ostringstream captured;  // NOLINT(misc-const-correctness)
+        std::streambuf* old_stderr = std::cerr.rdbuf(captured.rdbuf());
+        // "fast" appears 3 times total: 2 duplicates; "slow" appears 2 times: 1 duplicate
+        reg.Add<TagAdvDummy>("S", "B", &TagAdvDummy::Beta,
+                             {"fast", "slow", "fast", "fast", "slow"});
+        std::cerr.rdbuf(old_stderr);
+        auto output = captured.str();
+        // 3 warnings total (2 for "fast", 1 for "slow")
+        std::size_t warn_count = 0;
+        std::size_t pos = 0;
+        while ((pos = output.find("[flul-test]", pos)) != std::string::npos) {
+            ++warn_count;
+            ++pos;
+        }
+        Expect(warn_count).ToEqual(std::size_t{3});
+        // Only 2 unique tags stored
+        Expect(reg.Tests()[0].tags.size()).ToEqual(std::size_t{2});
     }
 
     void TestFilterByTagWithDuplicatesInInclude() {
@@ -351,6 +403,11 @@ class TagAdversarialSuite : public Suite<TagAdversarialSuite> {
                 {"TestEmptyStringTag", &TagAdversarialSuite::TestEmptyStringTag},
                 {"TestFilterByEmptyStringTag", &TagAdversarialSuite::TestFilterByEmptyStringTag},
                 {"TestDuplicateTagsOnSameTest", &TagAdversarialSuite::TestDuplicateTagsOnSameTest},
+                {"TestDuplicateTagEmitsStderrWarning",
+                 &TagAdversarialSuite::TestDuplicateTagEmitsStderrWarning},
+                {"TestNoDuplicateTagNoWarning", &TagAdversarialSuite::TestNoDuplicateTagNoWarning},
+                {"TestMultipleDuplicatesEmitOneWarningEach",
+                 &TagAdversarialSuite::TestMultipleDuplicatesEmitOneWarningEach},
                 {"TestFilterByTagWithDuplicatesInInclude",
                  &TagAdversarialSuite::TestFilterByTagWithDuplicatesInInclude},
                 {"TestTagIsCaseSensitive", &TagAdversarialSuite::TestTagIsCaseSensitive},
