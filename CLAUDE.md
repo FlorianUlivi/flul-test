@@ -206,7 +206,8 @@ When creating or updating architecture diagrams:
 
 ## Known Issues
 
-Open issues live in `doc/known-issues.md`. Resolved issues are in `doc/resolved-issues.md`.
+Each issue lives in its own file: `doc/issues/KI-NNN.md`. All issues (open and
+resolved) live in the same directory; the `Status` field distinguishes them.
 
 ### Format
 
@@ -215,12 +216,20 @@ Open issues live in `doc/known-issues.md`. Resolved issues are in `doc/resolved-
 
 **Feature**: `#SLUG`
 **Date discovered**: YYYY-MM-DD
-**Status**: Open | In Progress | Wontfix | Deferred
+**Status**: Open | In Progress | Wontfix | Deferred | Resolved
 **Phase**: Requirements | Architecture | Design | Implementation
 **Reproducer**: `<test name or file>`
+**Related**: KI-NNN, KI-NNN          ← omit if empty
 
 <concise description: what was expected, what actually happened>
+
+**Resolved**: YYYY-MM-DD             ← only when resolved
+**Fix**: <commit or PR>              ← only when resolved
 ```
+
+`Related` is a comma-separated list of `KI-NNN` or `#SLUG` references. Add a
+parenthetical when the relationship needs clarification, e.g.
+`KI-003 (blocked by)`, `#XFAIL (tracked in)`.
 
 ### ID Scheme
 
@@ -239,7 +248,7 @@ commits, and PRs (e.g. `Fixes KI-004`).
 | Situation | Action |
 |-----------|--------|
 | Clearly trivial (typo, status marker flip, one-liner) | Fix immediately, no entry |
-| Clearly non-trivial (blocked, systemic, needs decision, regression risk) | Add entry to `doc/known-issues.md` |
+| Clearly non-trivial (blocked, systemic, needs decision, regression risk) | Add `doc/issues/KI-NNN.md` |
 | Uncertain | Ask the user |
 
 ### Status Lifecycle
@@ -250,13 +259,14 @@ commits, and PRs (e.g. `Fixes KI-004`).
 | `In Progress` | Fix actively being worked; reference branch/PR |
 | `Wontfix` | Acknowledged, intentionally not fixed; state reason |
 | `Deferred` | Will be addressed with a future feature; reference `#SLUG` |
+| `Resolved` | Fixed; `**Resolved**` and `**Fix**` fields are populated |
 
 ### Addressing Issues via Prompt
 
 `KI-NNN` in a prompt means: address that known issue.
 
-1. Read the issue entry to determine phase and feature slug
+1. Read `doc/issues/KI-NNN.md` to determine phase and feature slug
 2. Route to the Phase N agent per the Feature Development Workflow table. Chain phases if the fix spans multiple. Phase 5 (`feature-adversarial-tester`) is required before closing if any code in `src/` or `include/` was changed.
-3. On close: move entry from `doc/known-issues.md` to `doc/resolved-issues.md`;
-   add `**Resolved**: YYYY-MM-DD` and `**Fix**: <commit or PR>`
+3. On close: update `Status` to `Resolved` in `doc/issues/KI-NNN.md`; add
+   `**Resolved**: YYYY-MM-DD` and `**Fix**: <commit or PR>` fields
 
