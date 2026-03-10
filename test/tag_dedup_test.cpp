@@ -145,19 +145,19 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         Expect(reg.Tests()[1].metadata.tags.size()).ToEqual(std::size_t{1});
     }
 
-    // --- AddTests with group-level duplicate tags ---
+    // --- AddTests with per-test duplicate tags ---
 
     void TestAddTestsWithDuplicateGroupTags() {
         Registry reg;
         auto output = CaptureStderr([&] {
-            TagDedupDummy::AddTests(reg, "S",
-                                    {
-                                        {"Alpha", &TagDedupDummy::Alpha},
-                                        {"Beta", &TagDedupDummy::Beta},
-                                    },
-                                    {"dup", "dup"});
+            TagDedupDummy::AddTests(
+                reg, "S",
+                {
+                    {.name = "Alpha", .method = &TagDedupDummy::Alpha, .tags = {"dup", "dup"}},
+                    {.name = "Beta", .method = &TagDedupDummy::Beta, .tags = {"dup", "dup"}},
+                });
         });
-        // Each test should emit one warning (dup appears twice in group tags)
+        // Each test should emit one warning (dup appears twice in per-test tags)
         Expect(CountOccurrences(output, "[flul-test]")).ToEqual(std::size_t{2});
         // Both tests have exactly 1 unique tag
         Expect(reg.Tests()[0].metadata.tags.size()).ToEqual(std::size_t{1});
@@ -318,32 +318,41 @@ class TagDedupSuite : public Suite<TagDedupSuite> {
         AddTests(
             r, "TagDedupSuite",
             {
-                {"TestWarningContainsFlulTestPrefix",
-                 &TagDedupSuite::TestWarningContainsFlulTestPrefix},
-                {"TestWarningContainsTagName", &TagDedupSuite::TestWarningContainsTagName},
-                {"TestWarningContainsSuiteColonColonTestName",
-                 &TagDedupSuite::TestWarningContainsSuiteColonColonTestName},
-                {"TestWarningContainsWordWarning", &TagDedupSuite::TestWarningContainsWordWarning},
-                {"TestListVerboseAlphabeticalOrder",
-                 &TagDedupSuite::TestListVerboseAlphabeticalOrder},
-                {"TestDuplicateTagOnOneTestDoesNotAffectOtherTests",
-                 &TagDedupSuite::TestDuplicateTagOnOneTestDoesNotAffectOtherTests},
-                {"TestAddTestsWithDuplicateGroupTags",
-                 &TagDedupSuite::TestAddTestsWithDuplicateGroupTags},
-                {"TestAllTagsIdentical", &TagDedupSuite::TestAllTagsIdentical},
-                {"TestSingleTagNoDuplicate", &TagDedupSuite::TestSingleTagNoDuplicate},
-                {"TestEmptyTagListNoWarning", &TagDedupSuite::TestEmptyTagListNoWarning},
-                {"TestDuplicateEmptyStringTagDeduped",
-                 &TagDedupSuite::TestDuplicateEmptyStringTagDeduped},
-                {"TestFilterByTagAfterDedup", &TagDedupSuite::TestFilterByTagAfterDedup},
-                {"TestExcludeByTagAfterDedup", &TagDedupSuite::TestExcludeByTagAfterDedup},
-                {"TestListOutputBareNamesAfterDedup",
-                 &TagDedupSuite::TestListOutputBareNamesAfterDedup},
-                {"TestCaseSensitiveDedup", &TagDedupSuite::TestCaseSensitiveDedup},
-                {"TestRunAllSucceedsAfterDedup", &TagDedupSuite::TestRunAllSucceedsAfterDedup},
-                {"TestDedupWithFilterExcludeListCombo",
-                 &TagDedupSuite::TestDedupWithFilterExcludeListCombo},
-                {"TestListVerboseAfterHeavyDedup", &TagDedupSuite::TestListVerboseAfterHeavyDedup},
+                {.name = "TestWarningContainsFlulTestPrefix",
+                 .method = &TagDedupSuite::TestWarningContainsFlulTestPrefix},
+                {.name = "TestWarningContainsTagName",
+                 .method = &TagDedupSuite::TestWarningContainsTagName},
+                {.name = "TestWarningContainsSuiteColonColonTestName",
+                 .method = &TagDedupSuite::TestWarningContainsSuiteColonColonTestName},
+                {.name = "TestWarningContainsWordWarning",
+                 .method = &TagDedupSuite::TestWarningContainsWordWarning},
+                {.name = "TestListVerboseAlphabeticalOrder",
+                 .method = &TagDedupSuite::TestListVerboseAlphabeticalOrder},
+                {.name = "TestDuplicateTagOnOneTestDoesNotAffectOtherTests",
+                 .method = &TagDedupSuite::TestDuplicateTagOnOneTestDoesNotAffectOtherTests},
+                {.name = "TestAddTestsWithDuplicateGroupTags",
+                 .method = &TagDedupSuite::TestAddTestsWithDuplicateGroupTags},
+                {.name = "TestAllTagsIdentical", .method = &TagDedupSuite::TestAllTagsIdentical},
+                {.name = "TestSingleTagNoDuplicate",
+                 .method = &TagDedupSuite::TestSingleTagNoDuplicate},
+                {.name = "TestEmptyTagListNoWarning",
+                 .method = &TagDedupSuite::TestEmptyTagListNoWarning},
+                {.name = "TestDuplicateEmptyStringTagDeduped",
+                 .method = &TagDedupSuite::TestDuplicateEmptyStringTagDeduped},
+                {.name = "TestFilterByTagAfterDedup",
+                 .method = &TagDedupSuite::TestFilterByTagAfterDedup},
+                {.name = "TestExcludeByTagAfterDedup",
+                 .method = &TagDedupSuite::TestExcludeByTagAfterDedup},
+                {.name = "TestListOutputBareNamesAfterDedup",
+                 .method = &TagDedupSuite::TestListOutputBareNamesAfterDedup},
+                {.name = "TestCaseSensitiveDedup",
+                 .method = &TagDedupSuite::TestCaseSensitiveDedup},
+                {.name = "TestRunAllSucceedsAfterDedup",
+                 .method = &TagDedupSuite::TestRunAllSucceedsAfterDedup},
+                {.name = "TestDedupWithFilterExcludeListCombo",
+                 .method = &TagDedupSuite::TestDedupWithFilterExcludeListCombo},
+                {.name = "TestListVerboseAfterHeavyDedup",
+                 .method = &TagDedupSuite::TestListVerboseAfterHeavyDedup},
             });
     }
 };

@@ -73,12 +73,12 @@ class TagSuite : public Suite<TagSuite> {
 
     void TestAddTestsPassesTagsToAllTests() {
         Registry reg;
-        TagDummySuite::AddTests(reg, "S",
-                                {
-                                    {"Alpha", &TagDummySuite::Alpha},
-                                    {"Beta", &TagDummySuite::Beta},
-                                },
-                                {"unit", "fast"});
+        TagDummySuite::AddTests(
+            reg, "S",
+            {
+                {.name = "Alpha", .method = &TagDummySuite::Alpha, .tags = {"unit", "fast"}},
+                {.name = "Beta", .method = &TagDummySuite::Beta, .tags = {"unit", "fast"}},
+            });
         Expect(reg.Tests().size()).ToEqual(std::size_t{2});
         Expect(reg.Tests()[0].metadata.HasTag("unit")).ToBeTrue();
         Expect(reg.Tests()[1].metadata.HasTag("unit")).ToBeTrue();
@@ -88,9 +88,25 @@ class TagSuite : public Suite<TagSuite> {
         Registry reg;
         TagDummySuite::AddTests(reg, "S",
                                 {
-                                    {"Alpha", &TagDummySuite::Alpha},
+                                    {.name = "Alpha", .method = &TagDummySuite::Alpha},
                                 });
         Expect(reg.Tests()[0].metadata.tags.empty()).ToBeTrue();
+    }
+
+    void TestAddTestsPerTestDifferentTags() {
+        Registry reg;
+        TagDummySuite::AddTests(
+            reg, "S",
+            {
+                {.name = "Alpha", .method = &TagDummySuite::Alpha, .tags = {"fast"}},
+                {.name = "Beta", .method = &TagDummySuite::Beta, .tags = {"slow"}},
+                {.name = "Gamma", .method = &TagDummySuite::Gamma},
+            });
+        Expect(reg.Tests()[0].metadata.HasTag("fast")).ToBeTrue();
+        Expect(reg.Tests()[0].metadata.HasTag("slow")).ToBeFalse();
+        Expect(reg.Tests()[1].metadata.HasTag("slow")).ToBeTrue();
+        Expect(reg.Tests()[1].metadata.HasTag("fast")).ToBeFalse();
+        Expect(reg.Tests()[2].metadata.tags.empty()).ToBeTrue();
     }
 
     // --- Registry::FilterByTag ---
@@ -251,32 +267,45 @@ class TagSuite : public Suite<TagSuite> {
         AddTests(
             r, "TagSuite",
             {
-                {"TestHasTagReturnsTrueForPresentTag",
-                 &TagSuite::TestHasTagReturnsTrueForPresentTag},
-                {"TestHasTagReturnsFalseForAbsentTag",
-                 &TagSuite::TestHasTagReturnsFalseForAbsentTag},
-                {"TestHasTagReturnsFalseWhenNoTags", &TagSuite::TestHasTagReturnsFalseWhenNoTags},
-                {"TestAddStoresTags", &TagSuite::TestAddStoresTags},
-                {"TestAddDefaultTagsEmpty", &TagSuite::TestAddDefaultTagsEmpty},
-                {"TestAddTestsPassesTagsToAllTests", &TagSuite::TestAddTestsPassesTagsToAllTests},
-                {"TestAddTestsDefaultTagsEmpty", &TagSuite::TestAddTestsDefaultTagsEmpty},
-                {"TestFilterByTagKeepsMatchingTests", &TagSuite::TestFilterByTagKeepsMatchingTests},
-                {"TestFilterByTagOrSemantics", &TagSuite::TestFilterByTagOrSemantics},
-                {"TestFilterByTagEmptyIsNoOp", &TagSuite::TestFilterByTagEmptyIsNoOp},
-                {"TestExcludeByTagRemovesMatchingTests",
-                 &TagSuite::TestExcludeByTagRemovesMatchingTests},
-                {"TestExcludeByTagEmptyIsNoOp", &TagSuite::TestExcludeByTagEmptyIsNoOp},
-                {"TestExcludeOverridesInclude", &TagSuite::TestExcludeOverridesInclude},
-                {"TestListVerboseNoTags", &TagSuite::TestListVerboseNoTags},
-                {"TestListVerboseWithTags", &TagSuite::TestListVerboseWithTags},
-                {"TestRunTagFlag", &TagSuite::TestRunTagFlag},
-                {"TestRunTagFlagMissingArg", &TagSuite::TestRunTagFlagMissingArg},
-                {"TestRunExcludeTagFlag", &TagSuite::TestRunExcludeTagFlag},
-                {"TestRunExcludeTagFlagMissingArg", &TagSuite::TestRunExcludeTagFlagMissingArg},
-                {"TestRunListVerboseFlag", &TagSuite::TestRunListVerboseFlag},
-                {"TestRunTagAndExcludeTagCompose", &TagSuite::TestRunTagAndExcludeTagCompose},
-                {"TestRunFilterAndTagCompose", &TagSuite::TestRunFilterAndTagCompose},
-                {"TestRunMultipleTagFlags", &TagSuite::TestRunMultipleTagFlags},
+                {.name = "TestHasTagReturnsTrueForPresentTag",
+                 .method = &TagSuite::TestHasTagReturnsTrueForPresentTag},
+                {.name = "TestHasTagReturnsFalseForAbsentTag",
+                 .method = &TagSuite::TestHasTagReturnsFalseForAbsentTag},
+                {.name = "TestHasTagReturnsFalseWhenNoTags",
+                 .method = &TagSuite::TestHasTagReturnsFalseWhenNoTags},
+                {.name = "TestAddStoresTags", .method = &TagSuite::TestAddStoresTags},
+                {.name = "TestAddDefaultTagsEmpty", .method = &TagSuite::TestAddDefaultTagsEmpty},
+                {.name = "TestAddTestsPassesTagsToAllTests",
+                 .method = &TagSuite::TestAddTestsPassesTagsToAllTests},
+                {.name = "TestAddTestsDefaultTagsEmpty",
+                 .method = &TagSuite::TestAddTestsDefaultTagsEmpty},
+                {.name = "TestAddTestsPerTestDifferentTags",
+                 .method = &TagSuite::TestAddTestsPerTestDifferentTags},
+                {.name = "TestFilterByTagKeepsMatchingTests",
+                 .method = &TagSuite::TestFilterByTagKeepsMatchingTests},
+                {.name = "TestFilterByTagOrSemantics",
+                 .method = &TagSuite::TestFilterByTagOrSemantics},
+                {.name = "TestFilterByTagEmptyIsNoOp",
+                 .method = &TagSuite::TestFilterByTagEmptyIsNoOp},
+                {.name = "TestExcludeByTagRemovesMatchingTests",
+                 .method = &TagSuite::TestExcludeByTagRemovesMatchingTests},
+                {.name = "TestExcludeByTagEmptyIsNoOp",
+                 .method = &TagSuite::TestExcludeByTagEmptyIsNoOp},
+                {.name = "TestExcludeOverridesInclude",
+                 .method = &TagSuite::TestExcludeOverridesInclude},
+                {.name = "TestListVerboseNoTags", .method = &TagSuite::TestListVerboseNoTags},
+                {.name = "TestListVerboseWithTags", .method = &TagSuite::TestListVerboseWithTags},
+                {.name = "TestRunTagFlag", .method = &TagSuite::TestRunTagFlag},
+                {.name = "TestRunTagFlagMissingArg", .method = &TagSuite::TestRunTagFlagMissingArg},
+                {.name = "TestRunExcludeTagFlag", .method = &TagSuite::TestRunExcludeTagFlag},
+                {.name = "TestRunExcludeTagFlagMissingArg",
+                 .method = &TagSuite::TestRunExcludeTagFlagMissingArg},
+                {.name = "TestRunListVerboseFlag", .method = &TagSuite::TestRunListVerboseFlag},
+                {.name = "TestRunTagAndExcludeTagCompose",
+                 .method = &TagSuite::TestRunTagAndExcludeTagCompose},
+                {.name = "TestRunFilterAndTagCompose",
+                 .method = &TagSuite::TestRunFilterAndTagCompose},
+                {.name = "TestRunMultipleTagFlags", .method = &TagSuite::TestRunMultipleTagFlags},
             });
     }
 };

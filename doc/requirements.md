@@ -57,7 +57,7 @@ executables from the active LLVM toolchain.
 #### Per-Test Metadata
 
 1. **Tags** `[DONE]` `#TAG` - Annotate individual tests with string labels for cross-suite selection
-   - Tags are assigned at registration time as an optional argument to `Register()`
+   - Tags are assigned per test via a `TestDef` struct entry in `AddTests()`; the optional third field is an `std::initializer_list<std::string_view>` tags list; omitting it is zero-overhead (no tags stored)
    - Multiple tags per test are supported
    - `--tag <tag>` CLI flag runs only tests carrying that tag (repeatable; multiple flags are OR-combined)
    - `--exclude-tag <tag>` CLI flag skips tests carrying that tag (repeatable)
@@ -144,8 +144,9 @@ executables from the active LLVM toolchain.
 - CRTP base class for suite registration (register methods explicitly, no macros)
   - Registration is a static, type-level operation — CRTP provides the derived
     type naturally for fresh instance construction per test
-  - `Register()` accepts an optional `std::initializer_list<std::string_view>` tags
-    parameter; omitting it is zero-overhead (no tags stored)
+  - `AddTests()` accepts per-test tags via the `TestDef` aggregate `{name, method, tags}`;
+    the `tags` field is an optional `std::initializer_list<std::string_view>`; omitting it
+    is zero-overhead (no tags stored)
 - `TestMetadata` value type holds test identity and configuration (names, tags,
   flags such as xfail or timeout); owned by `TestEntry`, borrowed
   by `TestResult` via `std::reference_wrapper<const TestMetadata>`
