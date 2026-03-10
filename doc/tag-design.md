@@ -1,13 +1,13 @@
 # Tags — Detailed Design
 
-## 1. Overview
+## Overview
 
 Tags (`#TAG`) allow individual tests to be annotated with string labels at
 registration time, enabling cross-suite selection and exclusion via `--tag` and
 `--exclude-tag` CLI flags. This feature adds a `tags` field to `TestMetadata`,
 new filtering methods on `Registry`, and `--list-verbose` output showing tags.
 
-## 2. Requirements Reference
+## Requirements Reference
 
 From `doc/requirements.md`, feature `#TAG`:
 
@@ -26,7 +26,7 @@ From `doc/requirements.md`, design decisions:
   flags such as xfail or timeout); owned by `TestEntry`, borrowed by
   `TestResult` via `std::reference_wrapper<const TestMetadata>`
 
-## 3. Design Goals
+## Design Goals
 
 - Keep the registration API minimal: tags are the only new parameter
 - Unified filtering pipeline in `Registry` (name filter + tag include/exclude)
@@ -38,9 +38,9 @@ From `doc/requirements.md`, design decisions:
 - `Registry::Add` returns `TestEntry&` to enable the `Test<Derived>` builder
   pattern used by upcoming features
 
-## 4. C++ Architecture
+## C++ Architecture
 
-### 4.1 Tag Validation
+### Tag Validation
 
 A tag is valid if and only if it is non-empty and every character matches the
 pattern `[a-zA-Z0-9_-]` (ASCII alphanumeric, hyphen, underscore). Formally,
@@ -56,7 +56,7 @@ Validation is performed inside `Registry::Add`, after deduplication and before
 inserting tags into the `TestMetadata::tags` set. Because `AddTests` delegates
 to `Add`, all registration paths are covered.
 
-### 4.2 `TestMetadata` (new: `include/flul/test/test_metadata.hpp`)
+### `TestMetadata` (new: `include/flul/test/test_metadata.hpp`)
 
 ```cpp
 struct TestMetadata {
@@ -81,7 +81,7 @@ no tags are provided.
 
 `HasTag` returns whether the given tag is present in the set.
 
-### 4.3 `TestEntry` (modified: `include/flul/test/test_entry.hpp`)
+### `TestEntry` (modified: `include/flul/test/test_entry.hpp`)
 
 ```cpp
 struct TestEntry {
@@ -98,7 +98,7 @@ All code that currently accesses `entry.suite_name`, `entry.test_name`,
 `entry.tags`, or `entry.HasTag(...)` must go through `entry.metadata` instead
 (e.g., `entry.metadata.suite_name`, `entry.metadata.HasTag(...)`).
 
-### 4.4 `TestResult` (modified: `include/flul/test/test_result.hpp`)
+### `TestResult` (modified: `include/flul/test/test_result.hpp`)
 
 ```cpp
 struct TestResult {
@@ -122,23 +122,50 @@ All code that currently accesses `result.suite_name` or `result.test_name`
 must go through `result.metadata.get()` instead (e.g.,
 `result.metadata.get().suite_name`).
 
-### 4.5 `Suite<Derived>::AddTests` (modified signature)
+### `TestDef` (new: nested in `Suite<Derived>`)
+
+```cpp
+struct TestDef {
+    std::string_view name;
+    void (Derived::*method)();
+    std::initializer_list<std::string_view> tags;
+};
+```
+
+`TestDef` is a plain aggregate that groups a test name, its method pointer, and
+an optional tag list into a single registration unit. The `tags` field may be
+omitted in aggregate initialization (defaulting to an empty list), making the
+no-tags case zero-overhead and syntactically clean.
+
+**`initializer_list` lifetime invariant:** The underlying array backing
+`TestDef::tags` lives as long as the full-expression that created the
+`TestDef`. Because `AddTests` consumes its `initializer_list<TestDef>`
+parameter synchronously — iterating all entries and delegating to
+`Registry::Add` before returning — every `TestDef` value (and its `tags`
+array) is alive for the entire duration of use. `TestDef` must never be stored
+beyond the `AddTests` call.
+
+### `Suite<Derived>::AddTests` (modified signature)
 
 ```cpp
 static void AddTests(
     Registry& r, std::string_view suite_name,
-    std::initializer_list<std::pair<std::string_view, void (Derived::*)()>> tests,
-    std::initializer_list<std::string_view> tags = {});
+    std::initializer_list<TestDef> tests);
 ```
 
-Tags are a trailing parameter with default `{}`. All tests registered in a
-single `AddTests` call share the same tag set. This matches the common case:
-tags are a suite-level or logical-group concern, not per-method.
+Each `TestDef` carries its own tags, enabling per-test tag assignment:
 
-For per-test tags, users use the `Test<Derived>` builder (from `#XFAIL`)
-with a `.Tag("x")` method.
+```cpp
+MySuite::AddTests(r, "MySuite", {
+    {"Test1", &MySuite::Test1},                     // no tags
+    {"Test2", &MySuite::Test2, {"fast", "math"}},   // per-test tags
+});
+```
 
-### 4.6 `Registry` (modified: `include/flul/test/registry.hpp`)
+`AddTests` iterates the `tests` list and delegates to `Registry::Add` for each
+entry, passing `def.name`, `def.method`, and `def.tags`.
+
+### `Registry` (modified: `include/flul/test/registry.hpp`)
 
 Methods and signature changes:
 
@@ -183,7 +210,7 @@ bracket suffix.
 **`Filter`** — reads `entry.metadata.suite_name` and
 `entry.metadata.test_name` to form the qualified name for pattern matching.
 
-### 4.7 `Runner` (modified: `include/flul/test/runner.hpp`)
+### `Runner` (modified: `include/flul/test/runner.hpp`)
 
 `RunTest` constructs `TestResult` with a `std::reference_wrapper<const
 TestMetadata>` pointing to the entry's metadata, instead of copying
@@ -198,7 +225,7 @@ remains unchanged; `passed` is still a direct field on `TestResult`.
 Tags do not affect test execution or result reporting — they are purely a
 filtering concern.
 
-### 4.8 `Run()` (modified: `include/flul/test/run.hpp`)
+### `Run()` (modified: `include/flul/test/run.hpp`)
 
 New CLI flags: `--tag <tag>` (repeatable), `--exclude-tag <tag>` (repeatable),
 `--list-verbose`.
@@ -225,7 +252,7 @@ that would run.
 | `include/flul/test/test_metadata.hpp` | **New** — `TestMetadata` struct with `suite_name`, `test_name`, `tags`, `HasTag` |
 | `include/flul/test/test_entry.hpp` | **Modified** — replace raw fields with `TestMetadata metadata`; remove `HasTag` |
 | `include/flul/test/test_result.hpp` | **Modified** — replace `suite_name`/`test_name` with `reference_wrapper<const TestMetadata>`; remove `#include <string_view>` |
-| `include/flul/test/suite.hpp` | **Modified** — `AddTests` gains `tags` param |
+| `include/flul/test/suite.hpp` | **Modified** — add `TestDef` aggregate struct; `AddTests` takes `initializer_list<TestDef>` instead of pair + group tags |
 | `include/flul/test/registry.hpp` | **Modified** — `Add` returns `TestEntry&`, gains `tags`; `FilterByTag`, `ExcludeByTag`, `ListVerbose`; all accessors go through `entry.metadata` |
 | `include/flul/test/runner.hpp` | **Modified** — `RunTest` produces `TestResult` with metadata reference; `PrintResult`/`PrintSummary` access names via `result.metadata.get()` |
 | `include/flul/test/run.hpp` | **Modified** — `--tag`, `--exclude-tag`, `--list-verbose` flags |
@@ -236,7 +263,7 @@ that would run.
 
 All types remain in `flul::test`. No new namespaces.
 
-## 5. Key Design Decisions
+## Key Design Decisions
 
 ### `TestMetadata` as a separate struct
 
@@ -327,11 +354,20 @@ sequence are simple, explicit, and sufficient for the CLI-driven use case.
 mutation becomes awkward. Not in requirements; straightforward to refactor if
 needed.
 
-### Tags on `AddTests` are group-level, not per-test
+### Per-test tags via `TestDef` aggregate, not builder
 
-Per-test tags in `AddTests` would require a 3-tuple `{name, method, tags}`
-which is verbose and rarely needed. The `Test<Derived>` builder covers
-per-test tags via `.Tag("x")`.
+Tags are assigned per-test through the `TestDef` struct `{name, method, tags}`.
+The previous design used group-level tags on `AddTests` (all tests in one call
+shared the same tags) and deferred per-test tagging to a `Test<Derived>`
+builder that did not exist. The `TestDef` approach is simpler: it uses plain
+aggregate initialization, requires no builder machinery, and provides per-test
+granularity directly. The `tags` field is optional in aggregate init, so the
+no-tags case remains clean.
+
+**Trade-off:** The `TestDef` approach does not support group-level tags
+(applying one tag set to many tests in a single call). If needed, users repeat
+the tag in each `TestDef`. This is acceptable because tag sets are small and
+explicit repetition is clearer than implicit sharing.
 
 ### `--list-verbose` omits brackets for untagged tests
 
@@ -343,12 +379,12 @@ No trailing `[]` for tests without tags. Makes `--list-verbose` identical to
 Matches requirements (`--filter` first, tag second) and is efficient: name
 filtering narrows the set before tag filtering iterates.
 
-## 6. Feature Changelog
+## Feature Changelog
 
 Initial version. No prior `doc/tag-design.md` exists.
 
-**v1.1** — Added `#RAND` shuffle step (step 8) to section 4.4 execution order.
-Listing steps (6-7) remain before shuffle, ensuring `--list`/`--list-verbose`
+**v1.1** — Added `#RAND` shuffle step to the `Run()` execution order.
+Listing steps remain before shuffle, ensuring `--list`/`--list-verbose`
 are unaffected by randomization.
 
 **v1.2** — Corrective refactoring to introduce `TestMetadata` struct
@@ -361,30 +397,15 @@ decisions.
 
 Changes from v1.1:
 
-- Section 2: added requirements reference to the `TestMetadata` design
-  decision in `doc/requirements.md`
-- Section 3: added two design goals for `TestMetadata` extraction and
-  `Registry::Add` return type
-- Section 4.1: changed from **Modified** to **New** — `TestMetadata` is a new
-  file (`include/flul/test/test_metadata.hpp`), not a modification of an
-  existing one. Fields: `suite_name`, `test_name`, `tags` (as
-  `std::set<std::string_view>`), plus `HasTag` method
-- Section 4.2 (new): `TestEntry` modified to contain `TestMetadata metadata`
-  instead of raw fields; `HasTag` removed from `TestEntry`
-- Section 4.3 (new): `TestResult` modified to hold
-  `std::reference_wrapper<const TestMetadata>` instead of separate
-  `suite_name`/`test_name` fields. Lifetime invariant documented
-- Section 4.5: `Registry::Add` return type changed from `void` to
-  `TestEntry&`; all filter/list methods documented to access fields through
-  `entry.metadata`
-- Section 4.6 (new): `Runner` modifications — `RunTest` constructs
-  `TestResult` with metadata reference; `PrintResult`/`PrintSummary` access
-  names through `result.metadata.get()`
-- File map: expanded to include `test_entry.hpp`, `test_result.hpp`,
-  `runner.hpp`, and test files
-- Section 5: added three new design decisions (`TestMetadata` as separate
-  struct, `TestResult` references metadata, `Registry::Add` returns
-  `TestEntry&`)
+- Requirements Reference: added `TestMetadata` design decision reference
+- Design Goals: added goals for `TestMetadata` extraction and `Registry::Add` return type
+- Tag Validation (new): `TestMetadata` is a new file; fields: `suite_name`, `test_name`, `tags`, `HasTag`
+- TestEntry (new): modified to contain `TestMetadata metadata` instead of raw fields; `HasTag` removed
+- TestResult (new): holds `std::reference_wrapper<const TestMetadata>` instead of separate fields; lifetime invariant documented
+- Registry: `Add` return type changed from `void` to `TestEntry&`; all filter/list methods documented
+- Runner (new): `RunTest` constructs `TestResult` with metadata reference; accessors updated
+- File map: expanded to include `test_entry.hpp`, `test_result.hpp`, `runner.hpp`, and test files
+- Key Design Decisions: added three new decisions (`TestMetadata` as separate struct, `TestResult` references metadata, `Registry::Add` returns `TestEntry&`)
 
 **Breaking changes to existing code:**
 
@@ -404,13 +425,39 @@ Changes from v1.1:
 
 Changes from v1.2:
 
-- Section 4.1 (new): **Tag Validation** — specifies the `[a-zA-Z0-9_-]+`
-  allowlist, abort-on-invalid behavior via `std::cerr` + `std::terminate()`,
-  and validation call site in `Registry::Add`
-- Sections 4.2-4.8: renumbered from 4.1-4.7 (no content changes)
-- Section 5: added design decision "Hard abort on invalid tag content"
-  explaining the allowlist rationale, abort-vs-warning trade-off, and
-  consistency with existing invariant enforcement
+- Tag Validation (new section): specifies the `[a-zA-Z0-9_-]+` allowlist,
+  abort-on-invalid behavior via `std::cerr` + `std::terminate()`, and
+  validation call site in `Registry::Add`
+- Key Design Decisions: added "Hard abort on invalid tag content"
 
 No breaking changes to existing valid code. Previously accepted invalid tags
 (empty, whitespace, bracket-containing) will now cause a hard abort.
+
+**v1.4** — Per-test tags via `TestDef` aggregate (addresses KI-003).
+
+The previous design assigned tags at group level on `AddTests` and deferred
+per-test tagging to a `Test<Derived>` builder that did not exist, making
+per-test tagging impossible. This version replaces the group-level mechanism
+with a `TestDef` aggregate struct that carries per-test tags directly.
+
+Changes from v1.3:
+
+- `TestDef` (new): aggregate struct — fields `name`, `method`, `tags`;
+  `initializer_list` lifetime invariant documented
+- `Suite<Derived>::AddTests`: signature changed from
+  `initializer_list<pair<string_view, method>> + trailing tags` to
+  `initializer_list<TestDef>`; usage example added; removed reference to
+  non-existent `Test<Derived>` builder for tags
+- File map: `suite.hpp` entry updated to reflect `TestDef` struct and new
+  `AddTests` signature
+- Key Design Decisions: replaced "Tags on `AddTests` are group-level" with
+  "Per-test tags via `TestDef` aggregate, not builder"
+
+**Breaking changes:**
+
+- `Suite<Derived>::AddTests` signature changes: the `tests` parameter type
+  changes from `initializer_list<pair<string_view, void (Derived::*)()>>` to
+  `initializer_list<TestDef>`. The trailing `tags` parameter is removed. All
+  call sites must be updated to use `TestDef` aggregate syntax
+- Group-level tags (one tag set shared across all tests in an `AddTests` call)
+  are no longer supported; tags must be specified per `TestDef` entry
