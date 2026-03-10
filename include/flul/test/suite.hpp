@@ -3,7 +3,6 @@
 
 #include <initializer_list>
 #include <string_view>
-#include <utility>
 
 namespace flul::test {
 
@@ -12,6 +11,12 @@ class Registry;  // forward declaration — full definition in registry.hpp
 template <typename Derived>
 class Suite {
    public:
+    struct TestDef {
+        std::string_view name;
+        void (Derived::*method)();
+        std::initializer_list<std::string_view> tags;
+    };
+
     virtual ~Suite() = default;
     virtual void SetUp() {}
     virtual void TearDown() {}
@@ -23,10 +28,8 @@ class Suite {
 
     // Convenience bulk-registration helper.
     // Definition is in registry.hpp, after Registry is fully defined.
-    static void AddTests(
-        Registry& r, std::string_view suite_name,
-        std::initializer_list<std::pair<std::string_view, void (Derived::*)()>> tests,
-        std::initializer_list<std::string_view> tags = {});
+    static void AddTests(Registry& r, std::string_view suite_name,
+                         std::initializer_list<TestDef> tests);
 
    protected:
     Suite() = default;

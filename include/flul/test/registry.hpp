@@ -11,7 +11,6 @@
 #include <set>
 #include <span>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "flul/test/suite.hpp"
@@ -133,12 +132,10 @@ class Registry {
 // Out-of-line definition of Suite<Derived>::AddTests.
 // Lives here because it requires Registry to be fully defined.
 template <typename Derived>
-void Suite<Derived>::AddTests(
-    Registry& r, std::string_view suite_name,
-    std::initializer_list<std::pair<std::string_view, void (Derived::*)()>> tests,
-    std::initializer_list<std::string_view> tags) {
-    for (const auto& [name, method] : tests) {
-        r.Add<Derived>(suite_name, name, method, tags);
+void Suite<Derived>::AddTests(Registry& r, std::string_view suite_name,
+                              std::initializer_list<TestDef> tests) {
+    for (const auto& def : tests) {
+        r.Add<Derived>(suite_name, def.name, def.method, def.tags);
     }
 }
 
